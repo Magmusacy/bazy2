@@ -357,30 +357,20 @@ Proponowany zestaw funkcji można rozbudować wedle uznania/potrzeb
 # Zadanie 2 - rozwiązanie
 
 ```sql
--- funkcja participants
+-- funkcja f_trip_patricipants
 create FUNCTION f_trip_participants (p_trip_id IN NUMBER)
     RETURN sys_refcursor AS v_cursor sys_refcursor;
     BEGIN
         OPEN v_cursor FOR
-            SELECT
-                vr.reservation_id,
-                vr.country,
-                vr.trip_date,
-                vr.trip_name,
-                vr.firstname,
-                vr.lastname,
-                vr.status,
-                vr.trip_id,
-                vr.person_id,
-                vr.no_tickets
-
+            SELECT  *
             FROM vw_reservation vr
             WHERE vr.trip_id = p_trip_id AND vr.status != 'C';
 
     RETURN v_cursor;
     END f_trip_participants;
+/
 
--- funkcja rezerwacje
+-- funkcja f_person_reservations
 create FUNCTION f_person_reservations (
     p_person_id NUMBER
 ) RETURN SYS_REFCURSOR IS
@@ -391,7 +381,23 @@ BEGIN
 
     return v_cursor;
 END f_person_reservations;
+/
 
+--funkcja f_available_trips_to
+create FUNCTION f_available_trips_to (p_country IN VARCHAR2, p_date_from IN DATE,p_date_to IN DATE )
+    RETURN SYS_REFCURSOR IS v_cursor SYS_REFCURSOR;
+    BEGIN
+        IF p_date_from > p_date_to THEN
+            RETURN NULL;
+        END IF;
+        OPEN v_cursor FOR
+            SELECT * FROM TRIP
+                WHERE TRIP.COUNTRY = p_country
+                AND TRIP.TRIP_DATE BETWEEN p_date_from AND p_date_to AND TRIP.MAX_NO_PLACES > 0;
+        RETURN v_cursor;
+
+    END f_available_trips_to;
+/
 
 ```
 
@@ -434,36 +440,123 @@ Proponowany zestaw procedur można rozbudować wedle uznania/potrzeb
 # Zadanie 3 - rozwiązanie
 
 ```sql
--- funkcja f_trip_patricipants
-create FUNCTION f_trip_participants (p_trip_id IN NUMBER)
-    RETURN sys_refcursor AS v_cursor sys_refcursor;
+
+create PROCEDURE p_add_reservation(
+    p_trip_id IN Number,
+    p_person_id IN Number,
+    p_no_tickets IN Number
+) IS
+    v_id               NUMBER;
+    v_start_date       DATE;
+    v_available_places NUMBER;
+    v_reservation_id   NUMBER;
+BEGIN
+    if F_TRIP_EXISTS(p_trip_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Taka wycieczka nie istnieje');
+    end if;
+
+    if F_PERSON_EXISTS(p_person_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Taka osoba nie istnieje');
+    end if;
+
+    SELECT TRIP_ID, TRIP_DATE, NO_AVAILABLE_PLACES
+    INTO v_id, v_start_date, v_available_places
+    FROM VW_AVAILABLE_TRIP
+    WHERE TRIP_ID = p_trip_id;
+
+    IF v_start_date <= CURRENT_DATE THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Wycieczka już się odbyła');
+    END IF;
+
+    IF v_available_places < p_no_tickets OR p_no_tickets = 0 THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Brak wystarczającej ilości miejsc');
+    END IF;
+
+    INSERT INTO RESERVATION(trip_id, person_id, status, no_tickets)
+    VALUES (p_trip_id, p_person_id, 'N', p_no_tickets)
+    RETURNING RESERVATION_ID INTO v_reservation_id;
+
+    INSERT INTO LOG(RESERVATION_ID, LOG_DATE, STATUS, NO_TICKETS) VALUES (v_reservation_id, CURRENT_DATE, 'N', p_no_tickets);
+end;
+
+create PROCEDURE p_modify_reservation_status (
+    p_reservation_id IN INT,
+    p_status IN VARCHAR2
+) IS
+    v_current_status VARCHAR2(1);
+BEGIN
+    IF F_RESERVATION_EXISTS(p_reservation_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Rezerwacja o podanym ID nie istnieje.');
+    end if;
+
+    SELECT STATUS INTO v_current_status
+    FROM RESERVATION
+    WHERE RESERVATION_ID = p_reservation_id;
+
+    IF v_current_status = 'C' THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Nie można zmienić statusu anulowanej rezerwacji.');
+    end if;
+
+    UPDATE RESERVATION
+        SET STATUS = p_status
+    WHERE RESERVATION_ID = p_reservation_id;
+
+    INSERT INTO LOG(reservation_id, log_date, status)
+    VALUES (p_reservation_id, SYSDATE, p_status
+            );
+end;
+
+create PROCEDURE p_modify_reservation(
+        p_reservation_id IN Number,
+        p_no_tickets IN Number
+    ) IS
+        v_available_places NUMBER;
     BEGIN
-        OPEN v_cursor FOR
-            SELECT  *
-            FROM vw_reservation vr
-            WHERE vr.trip_id = p_trip_id AND vr.status != 'C';
+        IF F_RESERVATION_EXISTS(p_reservation_id) = 0 THEN
+            RAISE_APPLICATION_ERROR(-20003, 'Rezerwacja o podanym ID nie istnieje.');
+        end if;
 
-    RETURN v_cursor;
-    END f_trip_participants;
-/
+        SELECT NO_AVAILABLE_PLACES
+        INTO v_available_places
+        FROM VW_TRIP tr
+        JOIN VW_RESERVATION re ON re.TRIP_ID = tr.TRIP_ID
+        WHERE RESERVATION_ID = p_reservation_id;
 
---funkcja f_available_trips_to
-create FUNCTION f_available_trips_to (p_country IN VARCHAR2, p_date_from IN DATE,p_date_to IN DATE )
-    RETURN SYS_REFCURSOR IS v_cursor SYS_REFCURSOR;
-    BEGIN
-        IF p_date_from > p_date_to THEN
-            RETURN NULL;
-        END IF;
-        OPEN v_cursor FOR
-            SELECT * FROM TRIP
-                WHERE TRIP.COUNTRY = p_country
-                AND TRIP.TRIP_DATE BETWEEN p_date_from AND p_date_to AND TRIP.MAX_NO_PLACES > 0;
-        RETURN v_cursor;
+        IF v_available_places < p_no_tickets THEN
+            RAISE_APPLICATION_ERROR(-20003, 'Brak wystarczającej ilości wolnych miejsc');
+        end if;
 
-    end f_available_trips_to;
-/
+        UPDATE RESERVATION
+        SET NO_TICKETS = p_no_tickets
+        WHERE RESERVATION_ID = p_reservation_id;
 
+        UPDATE LOG
+        SET NO_TICKETS = p_no_tickets
+        WHERE RESERVATION_ID = p_reservation_id;
+    end;
 
+  create PROCEDURE p_modify_max_number_of_places (
+    p_trip_id IN INT,
+    p_max_no_of_places IN INT
+) IS
+    v_already_reserved_count INT;
+BEGIN
+    IF F_TRIP_EXISTS(p_trip_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Rezerwacja o podanym ID nie istnieje.');
+    end if;
+    SELECT NVL(MAX_NO_PLACES-NO_AVAILABLE_PLACES,0) INTO v_already_reserved_count
+    FROM VW_AVAILABLE_TRIP
+    WHERE TRIP_ID=p_trip_id;
+
+    IF p_max_no_of_places < v_already_reserved_count THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Podana maksymalna liczba miejsc jest mniejsza niż liczba już zarezerwowanych miejsc');
+    end if;
+
+    UPDATE TRIP
+    SET MAX_NO_PLACES = p_max_no_of_places
+    WHERE TRIP_ID = p_trip_id;
+    commit;
+end;
 
 ```
 
@@ -492,7 +585,132 @@ Należy przygotować procedury: `p_add_reservation_4`, `p_modify_reservation_sta
 
 ```sql
 
--- wyniki, kod, zrzuty ekranów, komentarz ...
+--trigger zabraniający usunięcia rezerwacji
+
+create trigger TR_PREVENT_RESERVATION_DELETION
+    before delete
+    on RESERVATION
+    for each row
+BEGIN
+        RAISE_APPLICATION_ERROR(-20005, 'Nie można usunąć rezerwacji');
+    end;
+/
+
+--trigger obsługujący dodanie rezerwacji
+
+create trigger TR_RESERVATION_INSERT
+    after insert
+    on RESERVATION
+    for each row
+BEGIN
+    INSERT INTO log (RESERVATION_ID, LOG_DATE, STATUS, NO_TICKETS)
+    VALUES (:NEW.reservation_id, SYSDATE, :NEW.STATUS, :NEW.no_tickets);
+END;
+/
+
+--trigger obługujący zmianę statusu rezerwacji oraz liczby zarezerwowanych/kupionych biletów
+
+create trigger TR_RESERVATION_STATUS_CHANGE
+    after update
+    on RESERVATION
+    for each row
+    when (OLD.STATUS <> NEW.STATUS OR OLD.NO_TICKETS <> NEW.NO_TICKETS)
+BEGIN
+    INSERT INTO log (RESERVATION_ID, LOG_DATE, STATUS, NO_TICKETS)
+    VALUES (:NEW.reservation_id, SYSDATE, :NEW.STATUS, :NEW.no_tickets);
+END;
+/
+
+--zmodyfikowane procedury
+
+create PROCEDURE p_add_reservation_4(
+    p_trip_id IN Number,
+    p_person_id IN Number,
+    p_no_tickets IN Number
+) IS
+    v_id               NUMBER;
+    v_start_date       DATE;
+    v_available_places NUMBER;
+    v_reservation_id   NUMBER;
+BEGIN
+    if F_TRIP_EXISTS(p_trip_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Taka wycieczka nie istnieje');
+    end if;
+
+    if F_PERSON_EXISTS(p_person_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Taka osoba nie istnieje');
+    end if;
+
+    SELECT TRIP_ID, TRIP_DATE, NO_AVAILABLE_PLACES
+    INTO v_id, v_start_date, v_available_places
+    FROM VW_AVAILABLE_TRIP
+    WHERE TRIP_ID = p_trip_id;
+
+    IF v_start_date <= CURRENT_DATE THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Wycieczka już się odbyła');
+    END IF;
+
+    IF v_available_places < p_no_tickets OR p_no_tickets = 0 THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Brak wystarczającej ilości miejsc');
+    END IF;
+
+    INSERT INTO RESERVATION(trip_id, person_id, status, no_tickets)
+    VALUES (p_trip_id, p_person_id, 'N', p_no_tickets)
+
+end;
+/
+
+create PROCEDURE p_modify_reservation_status_4 (
+    p_reservation_id IN INT,
+    p_status IN VARCHAR2
+) IS
+    v_current_status VARCHAR2(1);
+BEGIN
+    IF F_RESERVATION_EXISTS(p_reservation_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Rezerwacja o podanym ID nie istnieje.');
+    end if;
+
+    SELECT STATUS INTO v_current_status
+    FROM RESERVATION
+    WHERE RESERVATION_ID = p_reservation_id;
+
+    IF v_current_status = 'C' THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Nie można zmienić statusu anulowanej rezerwacji.');
+    end if;
+
+    UPDATE RESERVATION
+    SET STATUS = p_status
+    WHERE RESERVATION_ID = p_reservation_id;
+
+end;
+/
+
+create PROCEDURE p_modify_reservation_4(
+    p_reservation_id IN Number,
+    p_no_tickets IN Number
+) IS
+    v_available_places NUMBER;
+BEGIN
+    IF F_RESERVATION_EXISTS(p_reservation_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Rezerwacja o podanym ID nie istnieje.');
+    end if;
+
+    SELECT NO_AVAILABLE_PLACES
+    INTO v_available_places
+    FROM VW_TRIP tr
+             JOIN VW_RESERVATION re ON re.TRIP_ID = tr.TRIP_ID
+    WHERE RESERVATION_ID = p_reservation_id;
+
+    IF v_available_places < p_no_tickets THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Brak wystarczającej ilości wolnych miejsc');
+    end if;
+
+    UPDATE RESERVATION
+    SET NO_TICKETS = p_no_tickets
+    WHERE RESERVATION_ID = p_reservation_id;
+
+end;
+/
 
 ```
 
@@ -522,8 +740,114 @@ Należy przygotować procedury: `p_add_reservation_5`, `p_modify_reservation_sta
 
 ```sql
 
--- wyniki, kod, zrzuty ekranów, komentarz ...
+-- trigger obsługujący dodanie rezerwacji
 
+create trigger TR_RESERVATION_INSERT_5
+    before insert
+    on RESERVATION
+    for each row
+DECLARE
+
+    v_available_places NUMBER;
+    v_trip_date        DATE;
+    BEGIN
+        IF F_TRIP_EXISTS(:NEW.TRIP_ID) = 0 THEN
+            RAISE_APPLICATION_ERROR(-20005, 'Nie znaleziono wycieczki o podanym ID');
+        end if;
+
+        IF F_PERSON_EXISTS(:NEW.TRIP_ID) = 0 THEN
+            RAISE_APPLICATION_ERROR(-20006, 'Nie znaleziono osoby o podanym ID');
+        end if;
+
+
+        SELECT NO_AVAILABLE_PLACES, TRIP_DATE INTO v_available_places, v_trip_date
+        FROM VW_TRIP
+        WHERE VW_TRIP.TRIP_ID = :NEW.TRIP_ID;
+
+        IF v_available_places < :NEW.NO_TICKETS THEN
+            RAISE_APPLICATION_ERROR(-20007, 'Brak wystarczającej liczby wolnych miejsc.');
+        end if;
+
+        IF v_trip_date < SYSDATE THEN
+            RAISE_APPLICATION_ERROR(-20008, 'Wycieczka o podanym ID już się odbyła');
+        end if;
+end;
+
+create trigger TR_RESERVATION_STATUS_CHANGE_5
+    before update
+    on RESERVATION
+    for each row
+    when (OLD.STATUS <> NEW.STATUS)
+BEGIN
+    IF :OLD.STATUS = 'C' THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Nie można zmienić statusu anulowanej rezerwacji.');
+    end if;
+END;
+
+create trigger TR_RESERVATION_CHANGE_NO_TICKETS_5
+    before update of NO_TICKETS
+    on RESERVATION
+    for each row
+    when (OLD.NO_TICKETS <> NEW.NO_TICKETS)
+DECLARE
+    v_available_places INT;
+    v_trip_date DATE;
+BEGIN
+    SELECT GET_AVAILABLE_PLACES(:NEW.TRIP_ID)
+    INTO v_available_places
+    FROM dual;
+
+    IF :NEW.NO_TICKETS > v_available_places THEN
+        RAISE_APPLICATION_ERROR(-20007, 'Niewystarczająca ilość wolnych miejsc');
+    END IF;
+
+    SELECT TRIP_DATE
+    INTO v_trip_date
+    FROM TRIP
+    WHERE TRIP.TRIP_ID = :OLD.TRIP_ID;
+
+    IF v_trip_date < SYSDATE THEN
+        RAISE_APPLICATION_ERROR(-20007, 'Ta wycieczka już się odbyła');
+    END IF;
+END;
+
+create PROCEDURE p_modify_reservation_5(
+    p_reservation_id IN Number,
+    p_no_tickets IN Number
+) IS
+BEGIN
+    UPDATE RESERVATION
+    SET NO_TICKETS = p_no_tickets
+    WHERE RESERVATION_ID = p_reservation_id;
+end;
+
+create PROCEDURE p_modify_reservation_status_5 (
+    p_reservation_id IN INT,
+    p_status IN VARCHAR2
+) IS
+BEGIN
+
+    UPDATE RESERVATION
+    SET STATUS = p_status
+    WHERE RESERVATION_ID = p_reservation_id;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+end;
+
+create PROCEDURE p_add_reservation_5(
+    p_trip_id IN Number,
+    p_person_id IN Number,
+    p_no_tickets IN Number
+) AS
+BEGIN
+
+    INSERT INTO RESERVATION(trip_id, person_id, status, no_tickets)
+    VALUES (p_trip_id, p_person_id, 'N', p_no_tickets);
+
+end;
 ```
 
 ---
@@ -555,8 +879,19 @@ alter table trip add
 
 ```sql
 
--- wyniki, kod, zrzuty ekranów, komentarz ...
+-- procedura update'ująca no_available_places
 
+create PROCEDURE update_no_available_places AS
+BEGIN
+    UPDATE trip t
+    SET no_available_places = NVL((
+        SELECT t.max_no_places - COUNT(r.trip_id)
+        FROM reservation r
+        WHERE r.trip_id = t.trip_id
+          AND r.status <> 'C'
+        GROUP BY t.max_no_places
+    ), 0);
+END;
 ```
 
 ---
@@ -578,7 +913,76 @@ Obsługę pola `no_available_places` należy zrealizować przy pomocy procedur
 
 ```sql
 
--- wyniki, kod, zrzuty ekranów, komentarz ...
+-- procedura dodająca rezerwację
+
+create PROCEDURE p_add_reservation_6a(
+    v_trip_id IN NUMBER,
+    v_person_id IN NUMBER,
+    v_no_tickets IN NUMBER
+) IS
+BEGIN
+    INSERT INTO RESERVATION(TRIP_ID, PERSON_ID, STATUS, NO_TICKETS)
+    VALUES (v_trip_id, v_person_id, 'N', v_no_tickets);
+
+    UPDATE TRIP
+    SET NO_AVAILABLE_PLACES = NO_AVAILABLE_PLACES - v_no_tickets
+    WHERE TRIP_ID = v_trip_id;
+end;
+-- procedura odpowiedzialna za zmianę statusu rezerwacji
+create PROCEDURE p_modify_reservation_max_no_places_6a (
+    p_trip_id IN PLS_INTEGER,
+    p_max_no_places IN PLS_INTEGER
+) AS
+    v_trip_id PLS_INTEGER;
+    v_old_max_no_places PLS_INTEGER;
+    v_available_places PLS_INTEGER;
+BEGIN
+    IF F_TRIP_EXISTS(p_trip_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Taka wycieczka nie istnieje');
+    end if;
+
+    SELECT TRIP_ID, MAX_NO_PLACES, no_available_places
+    INTO v_trip_id, v_old_max_no_places, v_available_places
+    FROM TRIP
+    WHERE TRIP_ID = p_trip_id;
+
+    IF p_max_no_places < v_old_max_no_places - v_available_places THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Nowa liczba miejsc nie może być niższa od obecnie dostępnych');
+    end if;
+
+    UPDATE TRIP
+    SET MAX_NO_PLACES = p_max_no_places,
+        TRIP.no_available_places = v_available_places + (p_max_no_places - v_old_max_no_places)
+    WHERE TRIP.TRIP_ID = p_trip_id;
+end;
+
+--procedura odpowiedzialna za zmianę maksymalnej liczby miejsc na wycieczki
+create PROCEDURE p_modify_reservation_max_no_places_6a (
+    p_trip_id IN PLS_INTEGER,
+    p_max_no_places IN PLS_INTEGER
+) AS
+    v_trip_id PLS_INTEGER;
+    v_old_max_no_places PLS_INTEGER;
+    v_available_places PLS_INTEGER;
+BEGIN
+    IF F_TRIP_EXISTS(p_trip_id) = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Taka wycieczka nie istnieje');
+    end if;
+
+    SELECT TRIP_ID, MAX_NO_PLACES, no_available_places
+    INTO v_trip_id, v_old_max_no_places, v_available_places
+    FROM TRIP
+    WHERE TRIP_ID = p_trip_id;
+
+    IF p_max_no_places < v_old_max_no_places - v_available_places THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Nowa liczba miejsc nie może być niższa od obecnie dostępnych');
+    end if;
+
+    UPDATE TRIP
+    SET MAX_NO_PLACES = p_max_no_places,
+        TRIP.no_available_places = v_available_places + (p_max_no_places - v_old_max_no_places)
+    WHERE TRIP.TRIP_ID = p_trip_id;
+end;
 
 ```
 
@@ -600,9 +1004,24 @@ Obsługę pola `no_available_places` należy zrealizować przy pomocy triggerów
 # Zadanie 6b - rozwiązanie
 
 ```sql
+create trigger TR_UPDATE_NO_AVAILABLE_PLACES_6B
+    after insert
+    on RESERVATION
+    for each row
+BEGIN
+    UPDATE TRIP
+    SET NO_AVAILABLE_PLACES = NO_AVAILABLE_PLACES - :NEW.NO_TICKETS
+    WHERE TRIP_ID = :NEW.TRIP_ID;
+end;
 
--- wyniki, kod, zrzuty ekranów, komentarz ...
-
+CREATE TRIGGER TR_UPDATE_STATUS_6B
+    AFTER UPDATE ON RESERVATION
+    FOR EACH ROW
+BEGIN
+    IF :NEW.STATUS = 'C' THEN
+        UPDATE TRIP SET NO_AVAILABLE_PLACES = NO_AVAILABLE_PLACES + :NEW.NO_TICKETS WHERE TRIP_ID = :NEW.TRIP_ID;
+    end if;
+end;
 ```
 
 # Zadanie 7 - podsumowanie
@@ -610,7 +1029,13 @@ Obsługę pola `no_available_places` należy zrealizować przy pomocy triggerów
 Porównaj sposób programowania w systemie Oracle PL/SQL ze znanym ci systemem/językiem MS Sqlserver T-SQL
 
 ```sql
-
--- komentarz ...
-
+-- W PL/SQL nie mamy auto-commitów znanych z MS SQLserver
+-- wszystkie transakcje musimy zatwierdzać jawnie commit/rollback
+-- Dodatkowo z naszego doświadczenia wynika, że operacje takie jak
+-- Włączanie/Wyłączanie triggerów oraz zmiana procedur/triggerów
+-- działają bardzo ociężale w PL/SQL, możliwe, że jest to coś
+-- co łatwo naprawić, ale na pewno w MS Sqlserverze nie mieliśmy
+-- takich problemów
+-- Ciekawym zabiegiem jest również PRAGMA AUTONOMOUS_TRANSACTION
+-- czyli funkcja która jest wywoływana w osobnej transakcji
 ```
