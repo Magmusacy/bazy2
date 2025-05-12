@@ -259,6 +259,139 @@ Napisz polecenie/zapytanie: Dla każdego klienta pokaż wartość zakupionych pr
 
 - porównaj zapytania/polecenia/wyniki
 
+Kod: 
+
+```js
+// Oryginalne kolekcje:
+b.orders.aggregate([
+	{
+		$lookup: {
+			from: "orderdetails",
+			localField: "OrderID",
+			foreignField: "OrderID",
+			as: "Orderdetails_tmp"
+		}
+	},
+	{
+		$unwind: "$Orderdetails_tmp"
+	},
+	{
+		$lookup: {
+			from: "products",
+			localField: "Orderdetails_tmp.ProductID",
+			foreignField: "ProductID",
+			as: "Products_tmp"
+		}
+	},
+	{
+		$unwind: "$Products_tmp"
+	},
+	{
+		$lookup: {
+			from: "categories",
+			localField: "Products_tmp.CategoryID",
+			foreignField: "CategoryID",
+			as: "Category_tmp"
+		}
+	},
+	{
+		$unwind: "$Category_tmp"
+	},
+	{
+		$match: {
+			"Category_tmp.CategoryName": "Confections",
+			$expr: {
+				$eq: [{ $year: "$OrderDate" }, 1997]
+			}
+		 }
+	},
+	{
+		$addFields: {
+			Value: {
+				$multiply: [ "$Orderdetails_tmp.UnitPrice", "$Orderdetails_tmp.Quantity", { $subtract: [1, "$Orderdetails_tmp.Discount"] } ]
+			 },
+		}
+	},
+	{
+		$lookup: {
+			from: "customers",
+			localField: "CustomerID",
+			foreignField: "CustomerID",
+			as: "Customer_tmp"
+		}
+	},
+	{
+		$unwind: "$Customer_tmp"
+	},
+	{
+		$group: {
+			_id: "$CustomerID",
+			CustomerID: { $first: "$CustomerID" },
+			CompanyName: { $first: "$Customer_tmp.CompanyName" },
+			ConfectionsSale97: { $sum: "$Value" }
+		}
+	},
+	{
+		$project: {
+			_id: 0,
+			CustomerID: 1,
+			CompanyName: 1,
+			ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
+		}
+	}
+])
+
+// Kolekcja OrdersInfo
+db.OrdersInfo.aggregate([
+	{
+		$match: {
+			$expr: { $eq: [ {$year: "$Dates.OrderDate"}, 1997 ] },
+		}
+	},
+	{
+		$addFields: {
+			filteredOrderDetails: {
+				$filter: {
+					input: "$OrderDetails",
+					as: "od",
+					cond: { $eq: [ "$$od.Product.CategoryName", "Confections" ] }
+				}
+			}
+		}
+	},
+	{
+		$addFields: {
+			ConfectionsSale97: {
+				$sum: "$filteredOrderDetails.Value"
+			},
+			CustomerID: "$Customer.CustomerID",
+			CompanyName: "$Customer.CompanyName"
+		}
+	},
+	{
+		$match: {
+			ConfectionsSale97: { $gt: 0 }
+		}
+	},
+	{
+		$group: {
+				_id: "$CustomerID",
+				CustomerID: { $first: "$CustomerID" },
+				CompanyName: { $first: "$Customer.CompanyName" },
+				ConfectionsSale97: { $sum: "$ConfectionsSale97" }
+		}
+	},
+	{
+		$project: {
+			_id: 0,
+			CustomerID: 1,
+			CompanyName: 1,
+			ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
+		}
+	}
+])
+```
+
 ```js
 [  
   {  
@@ -315,6 +448,122 @@ Napisz polecenie
 - aktualizując oryginalną kolekcję orderdetails`
 - aktualizując kolekcję `OrderInfo`
 - aktualizując kolekcję `CustomerInfo`
+
+Kod: 
+```js
+// aktualizując oryginalne kolekcje `orders`, `orderdetails`
+
+const chaiProductInfo = db.products.findOne({ ProductName: "Chai" });
+const ikuraProductInfo = db.products.findOne({ ProductName: "Ikura" });
+
+const lastOrderDoc = db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0];
+const newOrderID = lastOrderDoc.OrderID + 1;
+
+db.orders.find()
+
+const orderResult = db.orders.insertOne({
+	OrderID: newOrderID,
+	CustomerID: "ALFKI",
+	EmployeeID: 3,
+	OrderDate: new Date(2024, 4, 11),
+	RequiredDate: new Date(2025, 5, 11),
+	ShippedDate: new Date(2025, 4, 8),
+	ShipVia: 2,
+	Freight: 15.80,
+	ShipName: "Myslovitz",
+	ShipAddress: "Szkolna 17",
+	ShipCity: "Białystok",
+	ShipRegion: null,
+	ShipPostalCode: "23-535",
+	ShipCountry: "Poland"
+})
+
+db.orderdetails.insertMany([{
+	Discount: 0,
+	OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0],
+	ProductID: chaiProductInfo.ProductID,
+	Quantity: 5,
+	UnitPrice: chaiProductInfo.UnitPrice
+},
+{
+	Discount: 0,
+	OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0],
+	ProductID: ikuraProductInfo.ProductID,
+	Quantity: 5,
+	UnitPrice: ikuraProductInfo.UnitPrice
+}])
+
+// aktualizując kolekcję `OrderInfo`
+const alfki = db.customers.findOne({ CustomerID: "ALFKI" });
+const employee = db.employees.findOne({ EmployeeID: 4 });
+const newOrderID = db.OrdersInfo.find().sort({_id: -1}).limit(1).toArray()[0].OrderID + 1;
+
+const chaiValue = chaiProductInfo.UnitPrice * 5;
+const ikuraValue = ikuraProductInfo.UnitPrice * 10;
+const orderTotal = chaiValue + ikuraValue;
+
+db.OrdersInfo.find().sort({OrderID: -1})
+
+db.OrdersInfo.insertOne({
+	Customer: {
+		CustomerID: alfki.CustomerID,
+		CompanyName: alfki.CompanyName,
+		City: alfki.City,
+		Country: alfki.Country
+	},
+	Dates: {
+		OrderDate: new Date(2024, 4, 11),
+		RequiredDate: new Date(2025, 5, 11)
+	},
+	Employee: {
+		EmployeeID: employee.EmployeeID,
+		FirstName: employee.FirstName,
+		LastName: employee.LastName,
+		Title: employee.Title
+	},
+	Freight: 312.3,
+	OrderDetails: [
+		{
+			UnitPrice: chaiProductInfo.UnitPrice,
+			Quantity: 5,
+			Discount: 0,
+			Value: chaiValue,
+			Product: {
+				ProductID: chaiProductInfo.ProductID,
+				ProductName: chaiProductInfo.ProductName,
+				QuantityPerUnit: chaiProductInfo.QuantityPerUnit,
+				CategoryID: chaiProductInfo.CategoryID,
+				CategoryName: db.categories.find( { CategoryID: chaiProductInfo.CategoryID } ).toArray()[0].CategoryName
+			}
+		},
+		{
+			UnitPrice: ikuraProductInfo.UnitPrice,
+			Quantity: 10,
+			Discount: 0,
+			Value: ikuraValue,
+			Product: {
+				ProductID: ikuraProductInfo.ProductID,
+				ProductName: ikuraProductInfo.ProductName,
+				QuantityPerUnit: ikuraProductInfo.QuantityPerUnit,
+				CategoryID: ikuraProductInfo.CategoryID,
+				CategoryName: db.categories.find( { CategoryID: ikuraProductInfo.CategoryID } ).toArray()[0].CategoryName
+			}
+		}
+	],
+	OrderID: newOrderID,
+	OrderTotal: orderTotal,
+	Shipment: {
+		Shipper: {
+			ShipperID: 30,
+			CompanyName: "Kult"
+		},
+		ShipName: "Brooklyn",
+		ShipAddress: "Bruhhh",
+		ShipCity: "Kraków",
+		ShipCountry: "Poland",
+	}
+})
+```
 
 # f)
 
