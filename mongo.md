@@ -249,6 +249,38 @@ stwórz kolekcję  `CustomerInfo`  zawierającą następujące dane kazdym klenc
 ]  
 ```
 
+Kod:
+
+```js
+
+db.OrdersInfo.aggregate([
+    {
+        $group: {
+            _id: "$Customer.CustomerID",
+            CustomerID: { $first: "$Customer.CustomerID" },
+            CompanyName: { $first: "$Customer.CompanyName" },
+            City: { $first: "$Customer.City" },
+            Country: { $first: "$Customer.Country" },
+            Orders: {
+                $push: {
+                    OrderID: "$OrderID",
+                    OrderTotal: "$OrderTotal",
+                    OrderDetails: "$OrderDetails",
+                    Employee: "$Employee",
+                    Dates: "$Dates",
+                    Freight: "$Freight",
+                    Shipment: "$Shipment"
+                }
+            }
+        }
+    },
+    {
+        $out: "CustomerInfo"
+    }
+])
+
+```
+
 # c) 
 
 Napisz polecenie/zapytanie: Dla każdego klienta pokaż wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
