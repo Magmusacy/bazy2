@@ -890,14 +890,14 @@ const orderResult = db.orders.insertOne({
 
 db.orderdetails.insertMany([{
     Discount: 0,
-    OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0],
+    OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0].OrderID,
     ProductID: chaiProductInfo.ProductID,
     Quantity: 5,
     UnitPrice: chaiProductInfo.UnitPrice
 },
     {
         Discount: 0,
-        OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0],
+        OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0].OrderID,
         ProductID: ikuraProductInfo.ProductID,
         Quantity: 5,
         UnitPrice: ikuraProductInfo.UnitPrice
@@ -1031,8 +1031,133 @@ db.CustomerInfo.updateOne({ CustomerID: "ALFKI" }, {
 	}
 })
 ```
+#### Komentarz:
+Dodawanie produktów ma podobny poziom skomplikowaności we wszystkich przypadkach natomiast dla aktulizowania kolekcji OrdersInfo i CustomerInfo potrzebujemy znać wartość zamówienia która musi być wczesniej obliczona
 
-....
+f)
+
+```js
+// Oryginalne kolekcje
+db.orderdetails.updateMany(
+  { OrderID: newOrderID },
+  { $inc: { Discount: 0.05 } }
+)
+
+// Kolekcja OrdersInfo
+db.OrdersInfo.updateOne(
+  { OrderID: newOrderID },
+  [{
+    $set: {
+      OrderDetails: {
+        $map: {
+          input: "$OrderDetails",
+          as: "od",
+          in: {
+            $mergeObjects: [
+              "$$od",
+              {
+                Discount: { $add: ["$$od.Discount", 0.05] },
+                Value: {
+                  $multiply: [
+                    "$$od.UnitPrice",
+                    "$$od.Quantity",
+                    { $subtract: [1, { $add: ["$$od.Discount", 0.05] }] }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      OrderTotal: {
+        $sum: {
+          $map: {
+            input: "$OrderDetails",
+            as: "od",
+            in: {
+              $multiply: [
+                "$$od.UnitPrice",
+                "$$od.Quantity",
+                { $subtract: [1, { $add: ["$$od.Discount", 0.05] }] }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }]
+)
+
+// Kolekcja CustomerInfo
+db.CustomerInfo.updateOne(
+  {
+    "CustomerID": "ALFKI",
+    "Orders.OrderID": newOrderID
+  },
+  [{
+    $set: {
+      Orders: {
+        $map: {
+          input: "$Orders",
+          as: "order",
+          in: {
+            $cond: [
+              { $eq: ["$$order.OrderID", newOrderID] },
+              {
+                $mergeObjects: [
+                  "$$order",
+                  {
+                    "OrderDetails": {
+                      $map: {
+                        input: "$$order.OrderDetails",
+                        as: "od",
+                        in: {
+                          $mergeObjects: [
+                            "$$od",
+                            {
+                              Discount: { $add: ["$$od.Discount", 0.05] },
+                              Value: {
+                                $multiply: [
+                                  "$$od.UnitPrice",
+                                  "$$od.Quantity",
+                                  { $subtract: [1, { $add: ["$$od.Discount", 0.05] }] }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    OrderTotal: {
+                      $sum: {
+                        $map: {
+                          input: "$$order.OrderDetails",
+                          as: "od",
+                          in: {
+                            $multiply: [
+                              "$$od.UnitPrice",
+                              "$$od.Quantity",
+                              { $subtract: [1, { $add: ["$$od.Discount", 0.05] }] }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "$$order"
+            ]
+          }
+        }
+      }
+    }
+  }]
+)
+```
+
+#### Komentarz:
+Widzimy, że aktualizowanie zniżki dla kolekcji CustomerInfo jest znacznie bardziej skomplikowane niż dla OrdersInfo natomiast najprościej jest zaaktualizować zniżke dla oryginalnych danych.
 
 # Zadanie 2 - modelowanie danych
 
