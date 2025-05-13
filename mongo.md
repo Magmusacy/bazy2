@@ -900,62 +900,65 @@ W tym podejściu dane są podzielone na odrębne kolekcje, które są ze sobą p
 Kolekcja Users
 ````js
 {
-    "_id": ObjectId,
-        "username": String,
-        "email": String,
-        "password": String,
-        "displayName": String,
-        "bio": String,
-        "joinDate": Date,
-        "followersCount": Number,
-        "followingCount": Number,
-        "postsCount": Number
+  "_id": ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+          "username": "jan_kowalski",
+          "email": "jan.kowalski@example.com",
+          "password": "$2a$10$X7JhbS1Ehp8YK4Xo9jM1e.Lqz4DZM6rXV8wY9X9Y8X7X8X7X8X7X8",
+          "displayName": "Jan Kowalski",
+          "bio": "Pasjonat technologii i kawy",
+          "joinDate": ISODate("2023-01-15T12:00:00Z"),
+          "followersCount": 120,
+          "followingCount": 85,
+          "postsCount": 45
 }
+
 ````
 Kolekcja Posts
 ````js
 {
-    "_id": ObjectId, 
-        "userId": ObjectId,
-        "content": String,
-        "createdAt": Date,
-        "updatedAt": Date,
-        "likesCount": Number,
-        "commentsCount": Number,
-        "maxComments": Number,  // Limit komentarzy ustawiony przez użytkownika
-        "tags": [array]
+  "_id": ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+          "userId": ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+          "content": "Dzisiaj jest piękny dzień na programowanie!",
+          "createdAt": ISODate("2023-05-20T14:30:00Z"),
+          "updatedAt": ISODate("2023-05-20T14:30:00Z"),
+          "likesCount": 25,
+          "commentsCount": 8,
+          "maxComments": 20,  // Limit komentarzy ustawiony przez użytkownika
+          "tags": ["programowanie", "technologia"]
 }
+
 ````
 
 Kolekcja Comments
 ````js
 {
-    "_id": ObjectId,
-        "postId": ObjectId,
-        "userId": ObjectId,
-        "content": String,
-        "createdAt": Date,
-        "likesCount": Number
+  "_id": ObjectId("7b8c9d0e1f2a3b4c5d6e7f8a"),
+          "postId": ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+          "userId": ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+          "content": "Całkowicie się zgadzam!",
+          "createdAt": ISODate("2023-05-20T15:45:00Z"),
+          "likesCount": 3
 }
+
 ````
 
 Kolekcja Follows
 ````js
 {
-    "_id": ObjectId,
-        "followerId": ObjectId,
-        "followingId": ObjectId,
-        "createdAt": Date
+  "_id": ObjectId("8c9d0e1f2a3b4c5d6e7f8a9b"),
+          "followerId": ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+          "followingId": ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+          "createdAt": ISODate("2023-03-10T09:15:00Z")
 }
 ````
 
 Kolekcja Likes
 ````js
 {
-        "_id": ObjectId,
-        "userId": ObjectId,
-        "postId": ObjectId,
-        "createdAt": Date
+  "_id": ObjectId("9d0e1f2a3b4c5d6e7f8a9b0c"),
+          "userId": ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+          "postId": ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+          "createdAt": ISODate("2023-05-20T16:20:00Z")
 }
 ````
 
@@ -985,50 +988,49 @@ W tym podejściu wykorzystujemy zagnieżdżone dokumenty, aby zmniejszyć liczb�
 Kolekcja Users
 ````js
 {
-    "_id": ObjectId,
-        "username": String,
-        "email": String,
-        "password": String,
-        "displayName": String,
-        "bio": String,
-        "joinDate": Date,
-        "stats": {
-            "followers": Number,
-            "following": Number,
-            "posts": Number
-        }
+  "_id": ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+          "username": "jan_kowalski",
+          "email": "jan.kowalski@example.com",
+          "password": "$2a$10$X7JhbS1Ehp8YK4Xo9jM1e.Lqz4DZM6rXV8wY9X9Y8X7X8X7X8X7X8",
+          "displayName": "Jan Kowalski",
+          "bio": "Pasjonat technologii i kawy",
+          "joinDate": ISODate("2023-01-15T12:00:00Z"),
+          "stats": {
+            "followers": 120,
+            "following": 85,
+            "posts": 45
+          }
 }
 ````
 Kolekcja Posts z zagnieżdżonymi komentarzami
 ````js
 {
-    "_id": ObjectId,
-        "author": {
-        "_id": ObjectId,
-            "username": String,
-            "displayName": String
-        },
-    "content": String,
-        "createdAt": Date,
-        "updatedAt": Date,
-        "likes": Number,
-        "maxComments": Number,
-        "tags": ["programowanie", "technologia"],
-        "comments": [
-        {
-            "_id": ObjectId,
-            "author": {
-                "_id": ObjectId,
-                "username": String,
-                "displayName": String
-            },
-            "content": String,
-            "createdAt": Date,
-            "likes": Number
-        }
-    ]
+  "_id": ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+          "author": {
+    "_id": ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+            "username": "jan_kowalski",
+            "displayName": "Jan Kowalski"
+  },
+  "content": "Dzisiaj jest piękny dzień na programowanie!",
+          "createdAt": ISODate("2023-05-20T14:30:00Z"),
+          "updatedAt": ISODate("2023-05-20T14:30:00Z"),
+          "likes": 25,
+          "maxComments": 20,
+          "tags": ["programowanie", "technologia"],
+          "comments": [
+    {
+      "_id": ObjectId("7b8c9d0e1f2a3b4c5d6e7f8a"),
+      "author": {
+        "_id": ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+        "username": "anna_nowak",
+        "displayName": "Anna Nowak"
+      },
+      "content": "Całkowicie się zgadzam!",
+      "createdAt": ISODate("2023-05-20T15:45:00Z"),
+      "likes": 3
+    }
+  ]
 }
-
 ````
 #### Zalety:
 
@@ -1060,19 +1062,19 @@ W tym podejściu łączymy zalety obu poprzednich wariantów, wykorzystując zar
 Kolekcja Users
 ````js
 {
-    "_id": ObjectId,
-        "username": String,
-        "email": String,
-        "password": String,
-        "profile": {
-            "displayName": String,
-                "bio": String,
-                "joinDate": Date
-        },
-    "stats": {
-        "followers": Number, 
-            "following": Number,
-            "posts": Number
+  "_id": ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+          "username": "jan_kowalski",
+          "email": "jan.kowalski@example.com",
+          "password": "$2a$10$X7JhbS1Ehp8YK4Xo9jM1e.Lqz4DZM6rXV8wY9X9Y8X7X8X7X8X7X8",
+          "profile": {
+            "displayName": "Jan Kowalski",
+            "bio": "Pasjonat technologii i kawy",
+            "joinDate": ISODate("2023-01-15T12:00:00Z")
+            },
+  "stats": {
+    "followers": 120,
+            "following": 85,
+            "posts": 45
     }
 }
 ````
@@ -1080,50 +1082,50 @@ Kolekcja Users
 Kolekcja Posts
 ````js
 {
-    "_id": ObjectId,
-        "userId": ObjectId,
-        "authorSummary": {
-        "username": String,
-            "displayName": String
-    },
-    "content": String,
-        "createdAt": Date,
-        "updatedAt": Date,
-        "stats": {
-        "likes": Number,
-            "comments": Number
-    },
-    "maxComments": Number,
-        "tags": [String, String],
-        "recentComments": [
-            {
-            "_id": ObjectId,
-            "userId": ObjectId,
-            "authorSummary": {
-                "username": String,
-                "displayName": String
-                },
-            "content": String,
-            "createdAt": Date,
-            "likes": Number
-            }
-        ]   
+  "_id": ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+          "userId": ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+          "authorSummary": {
+    "username": "jan_kowalski",
+            "displayName": "Jan Kowalski"
+  },
+  "content": "Dzisiaj jest piękny dzień na programowanie!",
+          "createdAt": ISODate("2023-05-20T14:30:00Z"),
+          "updatedAt": ISODate("2023-05-20T14:30:00Z"),
+          "stats": {
+    "likes": 25,
+            "comments": 8
+  },
+  "maxComments": 20,
+          "tags": ["programowanie", "technologia"],
+          "recentComments": [
+    {
+      "_id": ObjectId("7b8c9d0e1f2a3b4c5d6e7f8a"),
+      "userId": ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+      "authorSummary": {
+        "username": "anna_nowak",
+        "displayName": "Anna Nowak"
+      },
+      "content": "Całkowicie się zgadzam!",
+      "createdAt": ISODate("2023-05-20T15:45:00Z"),
+      "likes": 3
+    }
+  ]
 }
 ````
 
 Kolekcja Comments
 ````js
 {
-    "_id": ObjectId,
-        "postId": ObjectId,
-        "userId": ObjectId,
-        "authorSummary": {
-        "username": String,
-            "displayName": String
-        },
-    "content": String,
-        "createdAt": Date,
-        "likes": Number
+  "_id": ObjectId("7b8c9d0e1f2a3b4c5d6e7f8a"),
+          "postId": ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+          "userId": ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+          "authorSummary": {
+    "username": "anna_nowak",
+            "displayName": "Anna Nowak"
+  },
+  "content": "Całkowicie się zgadzam!",
+          "createdAt": ISODate("2023-05-20T15:45:00Z"),
+          "likes": 3
 }
 ````
 Zalety:
