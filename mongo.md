@@ -89,7 +89,119 @@ stwórz kolekcję  `OrdersInfo`  zawierającą następujące dane o zamówieniac
 ]  
 ```
 
-Kod:
+# b)
+
+stwórz kolekcję  `CustomerInfo`  zawierającą następujące dane kazdym klencie
+- pojedynczy dokument opisuje jednego klienta
+
+```js
+[
+    {
+        "_id": ...
+
+            "CustomerID": ... identyfikator klienta
+"CompanyName": ... nazwa klienta
+"City": ... miasto
+"Country": ... kraj
+
+"Orders": [ ... tablica zamówień klienta o strukturze takiej jak w punkcie a) (oczywiście bez informacji o kliencie)
+
+]
+
+
+]  
+```
+
+# c)
+
+Napisz polecenie/zapytanie: Dla każdego klienta pokaż wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
+- Spróbuj napisać to zapytanie wykorzystując
+    - oryginalne kolekcje (`customers, orders, orderdertails, products, categories`)
+    - kolekcję `OrderInfo`
+    - kolekcję `CustomerInfo`
+
+- porównaj zapytania/polecenia/wyniki
+
+```js
+[
+    {
+        "_id":
+
+            "CustomerID": ... identyfikator klienta
+"CompanyName": ... nazwa klienta
+"ConfectionsSale97": ... wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
+
+}
+]  
+```
+
+
+# d)
+
+Napisz polecenie/zapytanie:  Dla każdego klienta poaje wartość sprzedaży z podziałem na lata i miesiące
+Spróbuj napisać to zapytanie wykorzystując
+- oryginalne kolekcje (`customers, orders, orderdertails, products, categories`)
+- kolekcję `OrderInfo`
+- kolekcję `CustomerInfo`
+
+- porównaj zapytania/polecenia/wyniki
+
+```js
+[
+    {
+        "_id":
+
+            "CustomerID": ... identyfikator klienta
+"CompanyName": ... nazwa klienta
+
+"Sale": [ ... tablica zawierająca inf o sprzedazy
+    {
+        "Year":  ....
+        "Month": ....
+        "Total": ...
+    }
+    ...
+]
+}
+]  
+```
+
+# e)
+
+Załóżmy że pojawia się nowe zamówienie dla klienta 'ALFKI',  zawierające dwa produkty 'Chai' oraz "Ikura"
+- pozostałe pola w zamówieniu (ceny, liczby sztuk prod, inf o przewoźniku itp. możesz uzupełnić wg własnego uznania)
+  Napisz polecenie które dodaje takie zamówienie do bazy
+- aktualizując oryginalne kolekcje `orders`, `orderdetails`
+- aktualizując kolekcję `OrderInfo`
+- aktualizując kolekcję `CustomerInfo`
+
+Napisz polecenie
+- aktualizując oryginalną kolekcję orderdetails`
+- aktualizując kolekcję `OrderInfo`
+- aktualizując kolekcję `CustomerInfo`
+
+# f)
+
+Napisz polecenie które modyfikuje zamówienie dodane w pkt e)  zwiększając zniżkę  o 5% (dla każdej pozycji tego zamówienia)
+
+Napisz polecenie
+- aktualizując oryginalną kolekcję `orderdetails`
+- aktualizując kolekcję `OrderInfo`
+- aktualizując kolekcję `CustomerInfo`
+
+
+
+UWAGA:
+W raporcie należy zamieścić kod poleceń oraz uzyskany rezultat, np wynik  polecenia `db.kolekcka.fimd().limit(2)` lub jego fragment
+
+
+## Zadanie 1  - rozwiązanie
+
+> Wyniki:
+>
+> przykłady, kod, zrzuty ekranów, komentarz ...
+
+a)
 
 ```js
 db.orders.aggregate([
@@ -226,30 +338,8 @@ db.orders.aggregate([
 ])
 ```
 
-# b)
+b)
 
-stwórz kolekcję  `CustomerInfo`  zawierającą następujące dane kazdym klencie
-- pojedynczy dokument opisuje jednego klienta
-
-```js
-[
-    {
-        "_id": ...
-
-            "CustomerID": ... identyfikator klienta
-"CompanyName": ... nazwa klienta
-"City": ... miasto
-"Country": ... kraj
-
-"Orders": [ ... tablica zamówień klienta o strukturze takiej jak w punkcie a) (oczywiście bez informacji o kliencie)
-
-]
-
-
-]  
-```
-
-Kod:
 
 ```js
 
@@ -278,34 +368,9 @@ db.OrdersInfo.aggregate([
         $out: "CustomerInfo"
     }
 ])
-
 ```
 
-# c)
-
-Napisz polecenie/zapytanie: Dla każdego klienta pokaż wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
-- Spróbuj napisać to zapytanie wykorzystując
-    - oryginalne kolekcje (`customers, orders, orderdertails, products, categories`)
-    - kolekcję `OrderInfo`
-    - kolekcję `CustomerInfo`
-
-- porównaj zapytania/polecenia/wyniki
-
-```js
-[
-    {
-        "_id":
-
-            "CustomerID": ... identyfikator klienta
-"CompanyName": ... nazwa klienta
-"ConfectionsSale97": ... wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
-
-}
-]  
-```
-
-Kod:
-
+c) 
 ```js
 // Oryginalne kolekcje:
 db.orders.aggregate([
@@ -490,41 +555,41 @@ db.CustomerInfo.aggregate([
 ])
 ```
 
-# d)
+#### Porównanie zapytań:
+##### Oryginalne kolekcje:
+Zalety: źródłowe dane, bez redundacji. 
+Wady: Ciężka agregacja, dużo lookup i unwind oraz wolniejsze dla dużych danych
+##### Kolekcja OrdersInfo:
+Zalety: Brak lookupów, dużo prostsze zapytanie niż w wersji z oryginalnymi kolekcjami
+Wady: Musimy wcześneij przygotować tą kolekcje na podstawie danych źródłowych, trzeba pamiętać o jej aktualizacji w przypadku zmiany danych oryginalnych kolekcji
+##### Kolekcja CustomerInfo
+Zalety: Brak lookupów, dużo prostsze zapytanie niż w wersji z oryginalnymi kolekcjami oraz subiektywnie nieco prostsze niz OrdersInfo
+Wady: Redundacja jak w przypadku powyżej, i problemy z aktualizacją w wypadku aktualizacji oryginalnych danych
 
-Napisz polecenie/zapytanie:  Dla każdego klienta poaje wartość sprzedaży z podziałem na lata i miesiące
-Spróbuj napisać to zapytanie wykorzystując
-- oryginalne kolekcje (`customers, orders, orderdertails, products, categories`)
-- kolekcję `OrderInfo`
-- kolekcję `CustomerInfo`
-
-- porównaj zapytania/polecenia/wyniki
-
+#### Porównanie wyników:
+W każdym z 3 przypadków wyniki są identyczne i oto przykładowe 3 z nich:
 ```js
 [
-    {
-        "_id":
-
-            "CustomerID": ... identyfikator klienta
-"CompanyName": ... nazwa klienta
-
-"Sale": [ ... tablica zawierająca inf o sprzedazy
-    {
-        "Year":  ....
-        "Month": ....
-        "Total": ...
-    }
-    ...
+  {
+    "CompanyName": "Antonio Moreno Taquería",
+    "ConfectionsSale97": 958.93,
+    "CustomerID": "ANTON"
+  },
+  {
+    "CompanyName": "Around the Horn",
+    "ConfectionsSale97": 375.2,
+    "CustomerID": "AROUT"
+  },
+  {
+    "CompanyName": "Berglunds snabbköp",
+    "ConfectionsSale97": 561.96,
+    "CustomerID": "BERGS"
+  }
 ]
-}
-]  
 ```
 
-Kod:
-
-
+d) 
 ```js
-
 // Oryginalne kolekcje
 db.orders.aggregate([
     {
@@ -679,37 +744,132 @@ db.CustomerInfo.aggregate([
         }
     }
 ])
-
-
-
 ```
 
+#### Porównanie zapytań:
+Wady i zalety poszczególnych zapytań są identyczne do tych z zadania **c)**
+##### Oryginalne kolekcje:
+Zalety: źródłowe dane, bez redundacji. 
+Wady: Ciężka agregacja, dużo lookup i unwind oraz wolniejsze dla dużych danych
+##### Kolekcja OrdersInfo:
+Zalety: Brak lookupów, dużo prostsze zapytanie niż w wersji z oryginalnymi kolekcjami
+Wady: Musimy wcześneij przygotować tą kolekcje na podstawie danych źródłowych, trzeba pamiętać o jej aktualizacji w przypadku zmiany danych oryginalnych kolekcji
+##### Kolekcja CustomerInfo
+Zalety: Brak lookupów, dużo prostsze zapytanie niż w wersji z oryginalnymi kolekcjami oraz subiektywnie nieco prostsze niz OrdersInfo
+Wady: Redundacja jak w przypadku powyżej, i problemy z aktualizacją w wypadku aktualizacji oryginalnych danych
 
-# e)
+#### Porównanie wyników:
+W każdym z 3 przypadków wyniki są praktycznie identyczne, jedyne różnice mogą być widoczne w kolejności dokumentów w tablicy Sale i oto przykładowe 3 z nich:
+```js
+[
+  {
+    "_id": "ALFKI",
+    "CompanyName": "Alfreds Futterkiste",
+    "CustomerID": "ALFKI",
+    "Sale": [
+      {
+        "Year": 1998,
+        "Month": 3,
+        "Total": 471.2
+      },
+      {
+        "Year": 1998,
+        "Month": 4,
+        "Total": 933.5
+      },
+      {
+        "Year": 1997,
+        "Month": 8,
+        "Total": 814.5
+      },
+      {
+        "Year": 1998,
+        "Month": 1,
+        "Total": 845.8
+      },
+      {
+        "Year": 1997,
+        "Month": 10,
+        "Total": 1208
+      }
+    ]
+  },
+  {
+    "_id": "ANATR",
+    "CompanyName": "Ana Trujillo Emparedados y helados",
+    "CustomerID": "ANATR",
+    "Sale": [
+      {
+        "Year": 1998,
+        "Month": 3,
+        "Total": 514.4
+      },
+      {
+        "Year": 1997,
+        "Month": 11,
+        "Total": 320
+      },
+      {
+        "Year": 1996,
+        "Month": 9,
+        "Total": 88.8
+      },
+      {
+        "Year": 1997,
+        "Month": 8,
+        "Total": 479.75
+      }
+    ]
+  },
+  {
+    "_id": "ANTON",
+    "CompanyName": "Antonio Moreno Taquería",
+    "CustomerID": "ANTON",
+    "Sale": [
+      {
+        "Year": 1998,
+        "Month": 1,
+        "Total": 660
+      },
+      {
+        "Year": 1997,
+        "Month": 6,
+        "Total": 2082
+      },
+      {
+        "Year": 1997,
+        "Month": 9,
+        "Total": 1188.86
+      },
+      {
+        "Year": 1996,
+        "Month": 11,
+        "Total": 403.2
+      },
+      {
+        "Year": 1997,
+        "Month": 5,
+        "Total": 1940.85
+      },
+      {
+        "Year": 1997,
+        "Month": 4,
+        "Total": 749.06
+      }
+    ]
+  }
+]
+```
 
-Załóżmy że pojawia się nowe zamówienie dla klienta 'ALFKI',  zawierające dwa produkty 'Chai' oraz "Ikura"
-- pozostałe pola w zamówieniu (ceny, liczby sztuk prod, inf o przewoźniku itp. możesz uzupełnić wg własnego uznania)
-  Napisz polecenie które dodaje takie zamówienie do bazy
-- aktualizując oryginalne kolekcje `orders`, `orderdetails`
-- aktualizując kolekcję `OrderInfo`
-- aktualizując kolekcję `CustomerInfo`
-
-Napisz polecenie
-- aktualizując oryginalną kolekcję orderdetails`
-- aktualizując kolekcję `OrderInfo`
-- aktualizując kolekcję `CustomerInfo`
-
-Kod:
+e)
 ```js
 // aktualizując oryginalne kolekcje `orders`, `orderdetails`
-
+const alfki = db.customers.findOne({ CustomerID: "ALFKI" });
 const chaiProductInfo = db.products.findOne({ ProductName: "Chai" });
 const ikuraProductInfo = db.products.findOne({ ProductName: "Ikura" });
 
-const lastOrderDoc = db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0];
-const newOrderID = lastOrderDoc.OrderID + 1;
+const newOrderID = db.OrdersInfo.find().sort({_id: -1}).limit(1).toArray()[0].OrderID + 1;
 
-db.orders.find()
 
 const orderResult = db.orders.insertOne({
     OrderID: newOrderID,
@@ -744,15 +904,12 @@ db.orderdetails.insertMany([{
     }])
 
 // aktualizując kolekcję `OrderInfo`
-const alfki = db.customers.findOne({ CustomerID: "ALFKI" });
 const employee = db.employees.findOne({ EmployeeID: 4 });
 const newOrderID = db.OrdersInfo.find().sort({_id: -1}).limit(1).toArray()[0].OrderID + 1;
 
 const chaiValue = chaiProductInfo.UnitPrice * 5;
 const ikuraValue = ikuraProductInfo.UnitPrice * 10;
 const orderTotal = chaiValue + ikuraValue;
-
-db.OrdersInfo.find().sort({OrderID: -1})
 
 db.OrdersInfo.insertOne({
     Customer: {
@@ -813,40 +970,66 @@ db.OrdersInfo.insertOne({
         ShipCountry: "Poland",
     }
 })
-```
-
-# f)
-
-Napisz polecenie które modyfikuje zamówienie dodane w pkt e)  zwiększając zniżkę  o 5% (dla każdej pozycji tego zamówienia)
-
-Napisz polecenie
-- aktualizując oryginalną kolekcję `orderdetails`
-- aktualizując kolekcję `OrderInfo`
-- aktualizując kolekcję `CustomerInfo`
 
 
-
-UWAGA:
-W raporcie należy zamieścić kod poleceń oraz uzyskany rezultat, np wynik  polecenia `db.kolekcka.fimd().limit(2)` lub jego fragment
-
-
-## Zadanie 1  - rozwiązanie
-
-> Wyniki:
->
-> przykłady, kod, zrzuty ekranów, komentarz ...
-
-a)
-
-```js
---  ...
-```
-
-b)
-
-
-```js
---  ...
+const newOrderID = db.OrdersInfo.find().sort({_id: -1}).limit(1).toArray()[0].OrderID + 1;
+// aktualizując kolekcje CustomerInfo
+db.CustomerInfo.updateOne({ CustomerID: "ALFKI" }, {
+	$push: {
+		Orders: {
+			OrderID: newOrderID,
+			Dates: {
+				OrderDate: new Date(2024, 4, 11),
+				ShippedDate: new Date(2025, 4, 11)
+			},
+			Freight: 323,
+			OrderTotal: orderTotal,
+			Shipment: {
+				Shipper: {
+					ShipperID: 1,
+					CompanyName: db.shippers.find({ ShipperID: 1 }).toArray()[0].CompanyName
+				},
+				ShipName: "Taco",
+				ShipCity: "Warsaw",
+				ShipCountry: "Poland",
+			},
+			Employee: {
+				EmployeeID: employee.EmployeeID,
+				FirstName: employee.FirstName,
+				LastName: employee.LastName,
+				Title: employee.Title
+			},
+			OrderDetails: [
+			{
+				Product: {
+					ProductID: chaiProductInfo.ProductID,
+					ProductName: chaiProductInfo.ProductName,
+					QuantityPerUnit: chaiProductInfo.QuantityPerUnit,
+					CategoryID: chaiProductInfo.CategoryID,
+					CategoryName: db.categories.find( { CategoryID :  chaiProductInfo.CategoryID } ).toArray()[0].CategoryName
+				},
+				UnitPrice: chaiProductInfo.UnitPrice,
+				Quantity: 5,
+				Discount: 0,
+				Value: chaiValue
+			},
+			{
+				Product: {
+					ProductID: ikuraProductInfo.ProductID,
+					ProductName: ikuraProductInfo.ProductName,
+					QuantityPerUnit: ikuraProductInfo.QuantityPerUnit,
+					CategoryID: ikuraProductInfo.CategoryID,
+					CategoryName: db.categories.find( { CategoryID :  ikuraProductInfo.CategoryID } ).toArray()[0].CategoryName
+				},
+				UnitPrice: ikuraProductInfo.UnitPrice,
+				Quantity: 10,
+				Discount: 0,
+				Value: ikuraValue
+			},
+			]
+		}
+	}
+})
 ```
 
 ....
