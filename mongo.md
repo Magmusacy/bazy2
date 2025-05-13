@@ -669,7 +669,7 @@ db.CustomerInfo.aggregate([
       _id: "$_id.CustomerID",
       CustomerID: {$first: "$_id.CustomerID" },
       CompanyName: { $first: "$CompanyName" },
-      MonthlySales: {
+      Sale: {
         $push: {
           Year: "$_id.Year",
           Month: "$_id.Month",
