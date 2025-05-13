@@ -939,7 +939,6 @@ Kolekcja Comments
           "createdAt": ISODate("2023-05-20T15:45:00Z"),
           "likesCount": 3
 }
-
 ````
 
 Kolekcja Follows
@@ -1034,17 +1033,13 @@ Kolekcja Posts z zagnieżdżonymi komentarzami
 ````
 #### Zalety:
 
-- Mniejsza liczba zapytań do bazy danych
 
 - Szybsze pobieranie kompletnych danych o poście wraz z komentarzami
-
-- Prostsze zapytania do bazy danych
 
 - Lepsza wydajność przy odczycie danych
 
 #### Wady:
 
-- Potencjalnie duże dokumenty, które mogą przekroczyć limit rozmiaru dokumentu w MongoDB
 
 - Trudniejsza aktualizacja zagnieżdżonych danych
 
@@ -1085,17 +1080,17 @@ Kolekcja Posts
   "_id": ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
           "userId": ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
           "authorSummary": {
-    "username": "jan_kowalski",
+            "username": "jan_kowalski",
             "displayName": "Jan Kowalski"
   },
-  "content": "Dzisiaj jest piękny dzień na programowanie!",
+          "content": "Dzisiaj jest piękny dzień na programowanie!",
           "createdAt": ISODate("2023-05-20T14:30:00Z"),
           "updatedAt": ISODate("2023-05-20T14:30:00Z"),
           "stats": {
-    "likes": 25,
+            "likes": 25,
             "comments": 8
-  },
-  "maxComments": 20,
+          },
+          "maxComments": 20,
           "tags": ["programowanie", "technologia"],
           "recentComments": [
     {
@@ -1120,7 +1115,7 @@ Kolekcja Comments
           "postId": ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
           "userId": ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
           "authorSummary": {
-    "username": "anna_nowak",
+            "username": "anna_nowak",
             "displayName": "Anna Nowak"
   },
   "content": "Całkowicie się zgadzam!",
@@ -1143,9 +1138,6 @@ Zalety:
 Wady:
 
 - Większa złożoność implementacji
-
-- Konieczność utrzymywania spójności między kolekcjami
-
 - Nadal występuje pewna duplikacja danych
 
 #### Przykładowe zapytanie - pobieranie posta z najnowszymi komentarzami:
