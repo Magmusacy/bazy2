@@ -291,11 +291,24 @@ Napisz polecenie/zapytanie: Dla każdego klienta pokaż wartość zakupionych pr
 
 - porównaj zapytania/polecenia/wyniki
 
+```js
+[  
+  {  
+    "_id": 
+    
+    "CustomerID": ... identyfikator klienta
+    "CompanyName": ... nazwa klienta
+	"ConfectionsSale97": ... wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
+
+  }		  
+]  
+```
+
 Kod: 
 
 ```js
 // Oryginalne kolekcje:
-b.orders.aggregate([
+db.orders.aggregate([
 	{
 		$lookup: {
 			from: "orderdetails",
@@ -422,19 +435,59 @@ db.OrdersInfo.aggregate([
 		}
 	}
 ])
-```
 
-```js
-[  
-  {  
-    "_id": 
-    
-    "CustomerID": ... identyfikator klienta
-    "CompanyName": ... nazwa klienta
-	"ConfectionsSale97": ... wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
-
-  }		  
-]  
+// Kolekcja CustomerInfo
+db.CustomerInfo.aggregate([
+	{
+		$addFields: {
+			Orders97: {
+				$filter: {
+					input: "$Orders",
+					as: "od",
+					cond: { $eq: [ {$year: "$$od.Dates.OrderDate"}, 1997 ] }
+					}
+			}
+		}
+	},
+	{
+		$unwind: "$Orders97"
+	},
+	{
+		$addFields: {
+			Confections97: {
+				$filter: {
+					input: "$Orders97.OrderDetails",
+					as: "od",
+					cond: { $eq: [ "$$od.Product.CategoryName", "Confections" ] }
+				}
+			}
+		}
+	},
+	{
+		$match: {
+			Confections97: { $ne: [], $exists: true }
+		 }
+	},
+	{
+		$unwind: "$Confections97"
+	},
+	{
+		$group: {
+			_id: "$CustomerID",
+			CustomerID: { $first: "$CustomerID" },
+			CompanyName: { $first: "$CompanyName"},
+			ConfectionsSale97: { $sum: "$Confections97.Value" }
+		}
+	},
+		{
+  		$project: {
+  			_id: 0,
+  			CustomerID: 1,
+  			CompanyName: 1,
+  			ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
+  		}
+  	}
+])
 ```
 
 # d)
