@@ -813,6 +813,64 @@ db.OrdersInfo.insertOne({
         ShipCountry: "Poland",
     }
 })
+
+// aktualizując kolekcje CustomerInfo
+db.CustomerInfo.updateOne({ CustomerID: "ALFKI" }, {
+	$push: {
+		Orders: {
+			OrderID: newOrderID,
+			Dates: {
+				OrderDate: new Date(2024, 4, 11),
+				ShippedDate: new Date(2025, 4, 11)
+			},
+			Freight: 323,
+			OrderTotal: orderTotal,
+			Shipment: {
+				Shipper: {
+					ShipperID: 1,
+					CompanyName: db.shippers.find({ ShipperID: 1 }).toArray()[0].CompanyName
+				},
+				ShipName: "Taco",
+				ShipCity: "Warsaw",
+				ShipCountry: "Poland",
+			},
+			Employee: {
+				EmployeeID: employee.EmployeeID,
+				FirstName: employee.FirstName,
+				LastName: employee.LastName,
+				Title: employee.Title
+			},
+			OrderDetails: [
+			{
+				Product: {
+					ProductID: chaiProductInfo.ProductID,
+					ProductName: chaiProductInfo.ProductName,
+					QuantityPerUnit: chaiProductInfo.QuantityPerUnit,
+					CategoryID: chaiProductInfo.CategoryID,
+					CategoryName: db.categories.find( { CategoryID :  chaiProductInfo.CategoryID } ).toArray()[0].CategoryName
+				},
+				UnitPrice: chaiProductInfo.UnitPrice,
+				Quantity: 5,
+				Discount: 0,
+				Value: chaiValue
+			},
+			{
+				Product: {
+					ProductID: ikuraProductInfo.ProductID,
+					ProductName: ikuraProductInfo.ProductName,
+					QuantityPerUnit: ikuraProductInfo.QuantityPerUnit,
+					CategoryID: ikuraProductInfo.CategoryID,
+					CategoryName: db.categories.find( { CategoryID :  ikuraProductInfo.CategoryID } ).toArray()[0].CategoryName
+				},
+				UnitPrice: ikuraProductInfo.UnitPrice,
+				Quantity: 10,
+				Discount: 0,
+				Value: ikuraValue
+			},
+			]
+		}
+	}
+})
 ```
 
 # f)
