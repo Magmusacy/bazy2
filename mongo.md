@@ -1288,6 +1288,20 @@ Kolekcja Likes
 - Trudniejsze zarządzanie spójnością danych
 
 #### Przykładowe zapytanie - pobieranie posta z informacjami o autorze i komentarzami:
+```js
+//Pobranie posta
+db.Posts.findOne({ _id: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f") })
+
+// Pobranie autora posta
+db.Users.findOne({ _id: ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c") })
+
+//Pobranie komentarzy do posta
+db.Comments.find({ postId: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f") }).toArray()
+
+//Pobranie autorów komentarzy
+db.Users.find({ _id: { $in: [ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"), ObjectId("2b3c4d5e6f7a8b9c0d1e2f3a")] } }).toArray()
+
+```
 
 ### Wariant 2: Struktura z dokumentami zagnieżdżonymi
 W tym podejściu wykorzystujemy zagnieżdżone dokumenty, aby zmniejszyć liczbę zapytań do bazy danych.
@@ -1356,8 +1370,9 @@ Kolekcja Posts z zagnieżdżonymi komentarzami
 - Problemy ze skalowalnością przy dużej liczbie komentarzy
 
 #### Przykładowe zapytanie - pobieranie posta z komentarzami:
-
-#### Przykładowe zapytanie - dodawanie komentarza z kontrolą limitu:
+```js
+db.Posts.findOne({ _id: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f") })
+```
 
 ### Wariant 3: Struktura hybrydowa
 W tym podejściu łączymy zalety obu poprzednich wariantów, wykorzystując zarówno referencje, jak i zagnieżdżone dokumenty.
@@ -1449,15 +1464,619 @@ Wady:
 - Nadal występuje pewna duplikacja danych
 
 #### Przykładowe zapytanie - pobieranie posta z najnowszymi komentarzami:
-
-#### Przykładowe zapytanie - dodawanie komentarza z kontrolą limitu:
-
+```js
+db.Posts.findOne({ _id: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f") });
+```
 #### Przykładowe zapytanie - pobieranie wszystkich komentarzy do posta:
+```js
+db.Comments
+  .find({ postId: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f") })
+  .sort({ createdAt: -1 })
+  .toArray();
+```
 
+---
+#### Wybraliśmy wariant hybrydowy. Baza składa się z trzech głównych kolekcji: Users, Posts i Comments, które są ze sobą powiązane za pomocą referencji.
+
+#### Kolekcja Users 
+Przechowuje informacje o użytkownikach systemu:
+
+- _id: unikalny identyfikator użytkownika
+
+- username: nazwa użytkownika (3-30 znaków, tylko litery, cyfry i podkreślenia)
+
+- email: adres email użytkownika
+
+- password: zahaszowane hasło
+
+- profile: zagnieżdżony obiekt zawierający:
+
+  - displayName: wyświetlana nazwa użytkownika
+
+  - bio: krótki opis użytkownika (do 160 znaków)
+
+  - joinDate: data dołączenia do serwisu
+
+- stats: zagnieżdżony obiekt ze statystykami:
+
+  - followers: liczba obserwujących
+
+  - following: liczba obserwowanych
+
+  - posts: liczba opublikowanych postów
+
+#### Kolekcja Posts
+Zawiera posty użytkowników:
+
+- _id: unikalny identyfikator posta
+
+- userId: referencja do autora posta (powiązanie z kolekcją Users)
+
+- authorSummary: podstawowe informacje o autorze:
+
+- username: nazwa użytkownika
+
+- displayName: wyświetlana nazwa
+
+- content: treść posta (1-280 znaków)
+
+- createdAt: data utworzenia posta
+
+- updatedAt: data ostatniej aktualizacji
+
+- stats: statystyki posta:
+
+  - likes: liczba polubień
+
+  - comments: liczba komentarzy
+
+  - maxComments: maksymalna dozwolona liczba komentarzy (0-1000)
+
+- tags: tablica tagów posta
+
+- recentComments: tablica najnowszych komentarzy z podstawowymi informacjami
+
+#### Kolekcja Comments
+Przechowuje komentarze do postów:
+
+- _id: unikalny identyfikator komentarza
+
+- postId: referencja do posta (powiązanie z kolekcją Posts)
+
+-userId: referencja do autora komentarza (powiązanie z kolekcją Users)
+
+- authorSummary: podstawowe informacje o autorze:
+
+  - username: nazwa użytkownika
+
+  - displayName: wyświetlana nazwa
+
+- content: treść komentarza (1-280 znaków)
+
+- createdAt: data utworzenia komentarza
+
+- likes: liczba polubień komentarza
+
+Ponizej znajduje się walidacja oraz insert przykładowych danych, a także przykładowe polecenia.
 
 ```js
---  ...
+db.createCollection("Users", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["username", "email", "password", "profile", "stats"],
+      properties: {
+        username: {
+          bsonType: "string",
+          minLength: 3,
+          maxLength: 30,
+          pattern: "^[a-zA-Z0-9_]+$",
+          description:
+            "Musi być ciągiem znaków o długości 3-30 zawierającym tylko litery, cyfry i podkreślenia"
+        },
+        email: {
+          bsonType: "string",
+          pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,}$",
+          description: "Musi być poprawnym adresem email"
+        },
+        password: {
+          bsonType: "string",
+          minLength: 60,
+          maxLength: 60,
+          description: "Musi być zahaszowanym hasłem"
+        },
+        profile: {
+          bsonType: "object",
+          required: ["displayName", "joinDate"],
+          properties: {
+            displayName: {
+              bsonType: "string",
+              minLength: 1,
+              maxLength: 50
+            },
+            bio: {
+              bsonType: "string",
+              maxLength: 160
+            },
+            joinDate: {
+              bsonType: "date"
+            }
+          }
+        },
+        stats: {
+          bsonType: "object",
+          required: ["followers", "following", "posts"],
+          properties: {
+            followers: {
+              bsonType: "int",
+              minimum: 0
+            },
+            following: {
+              bsonType: "int",
+              minimum: 0
+            },
+            posts: {
+              bsonType: "int",
+              minimum: 0
+            }
+          }
+        }
+      }
+    }
+  }
+})
+ 
+db.createCollection("Posts", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: [
+        "userId",
+        "authorSummary",
+        "content",
+        "createdAt",
+        "stats",
+        "maxComments"
+      ],
+      properties: {
+        userId: {
+          bsonType: "objectId"
+        },
+        authorSummary: {
+          bsonType: "object",
+          required: ["username", "displayName"],
+          properties: {
+            username: {
+              bsonType: "string"
+            },
+            displayName: {
+              bsonType: "string"
+            }
+          }
+        },
+        content: {
+          bsonType: "string",
+          minLength: 1,
+          maxLength: 280
+        },
+        createdAt: {
+          bsonType: "date"
+        },
+        updatedAt: {
+          bsonType: "date"
+        },
+        stats: {
+          bsonType: "object",
+          required: ["likes", "comments"],
+          properties: {
+            likes: {
+              bsonType: "int",
+              minimum: 0
+            },
+            comments: {
+              bsonType: "int",
+              minimum: 0
+            }
+          }
+        },
+        maxComments: {
+          bsonType: "int",
+          minimum: 0,
+          maximum: 1000
+        },
+        tags: {
+          bsonType: "array",
+          items: {
+            bsonType: "string"
+          }
+        },
+        recentComments: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: [
+              "_id",
+              "userId",
+              "authorSummary",
+              "content",
+              "createdAt"
+            ],
+            properties: {
+              _id: {
+                bsonType: "objectId"
+              },
+              userId: {
+                bsonType: "objectId"
+              },
+              authorSummary: {
+                bsonType: "object",
+                required: ["username", "displayName"],
+                properties: {
+                  username: {
+                    bsonType: "string"
+                  },
+                  displayName: {
+                    bsonType: "string"
+                  }
+                }
+              },
+              content: {
+                bsonType: "string",
+                minLength: 1,
+                maxLength: 280
+              },
+              createdAt: {
+                bsonType: "date"
+              },
+              likes: {
+                bsonType: "int",
+                minimum: 0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+})
+ 
+db.createCollection("Comments", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["postId", "userId", "authorSummary", "content", "createdAt"],
+      properties: {
+        postId: {
+          bsonType: "objectId"
+        },
+        userId: {
+          bsonType: "objectId"
+        },
+        authorSummary: {
+          bsonType: "object",
+          required: ["username", "displayName"],
+          properties: {
+            username: {
+              bsonType: "string"
+            },
+            displayName: {
+              bsonType: "string"
+            }
+          }
+        },
+        content: {
+          bsonType: "string",
+          minLength: 1,
+          maxLength: 280
+        },
+        createdAt: {
+          bsonType: "date"
+        },
+        likes: {
+          bsonType: "int",
+          minimum: 0
+        }
+      }
+    }
+  }
+})
+ 
+db.Users.insertMany([
+  {
+    _id: ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+    username: "jan_kowalski",
+    email: "jan.kowalski@example.com",
+    password: "$2a$10$X7JhbS1Ehp8YK4Xo9jM1e.Lqz4DZM6rXV8wY9X9Y8X7X8X7X8X7X8",
+    profile: {
+      displayName: "Jan Kowalski",
+      bio: "Pasjonat technologii i kawy",
+      joinDate: ISODate("2023-01-15T12:00:00Z")
+    },
+    stats: {
+      followers: 120,
+      following: 85,
+      posts: 45
+    }
+  },
+  {
+    _id: ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+    username: "anna_nowak",
+    email: "anna.nowak@example.com",
+    password: "$2a$10$Y8X7X8X7X8X7X8X7X8X7X.Lqz4DZM6rXV8wY9X9Y8X7X8X7X8X7X8",
+    profile: {
+      displayName: "Anna Nowak",
+      bio: "Miłośniczka książek i podróży",
+      joinDate: ISODate("2023-02-10T09:30:00Z")
+    },
+    stats: {
+      followers: 85,
+      following: 120,
+      posts: 32
+    }
+  },
+  {
+    _id: ObjectId("2b3c4d5e6f7a8b9c0d1e2f3a"),
+    username: "marek_wisniewski",
+    email: "marek.wisniewski@example.com",
+    password: "$2a$10$Z9Y8X7X8X7X8X7X8X7X8X.Lqz4DZM6rXV8wY9X9Y8X7X8X7X8X7X8",
+    profile: {
+      displayName: "Marek Wiśniewski",
+      bio: "Programista, fan piłki nożnej",
+      joinDate: ISODate("2023-03-05T15:45:00Z")
+    },
+    stats: {
+      followers: 65,
+      following: 42,
+      posts: 28
+    }
+  }
+])
+ 
+db.Posts.insertMany([
+  {
+    _id: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+    userId: ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+    authorSummary: {
+      username: "jan_kowalski",
+      displayName: "Jan Kowalski"
+    },
+    content: "Dzisiaj jest piękny dzień na programowanie!",
+    createdAt: ISODate("2023-05-20T14:30:00Z"),
+    updatedAt: ISODate("2023-05-20T14:30:00Z"),
+    stats: {
+      likes: 25,
+      comments: 2
+    },
+    maxComments: 20,
+    tags: ["programowanie", "technologia"],
+    recentComments: [
+      {
+        _id: ObjectId("7b8c9d0e1f2a3b4c5d6e7f8a"),
+        userId: ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+        authorSummary: {
+          username: "anna_nowak",
+          displayName: "Anna Nowak"
+        },
+        content: "Całkowicie się zgadzam!",
+        createdAt: ISODate("2023-05-20T15:45:00Z"),
+        likes: 3
+      },
+      {
+        _id: ObjectId("8c9d0e1f2a3b4c5d6e7f8a9b"),
+        userId: ObjectId("2b3c4d5e6f7a8b9c0d1e2f3a"),
+        authorSummary: {
+          username: "marek_wisniewski",
+          displayName: "Marek Wiśniewski"
+        },
+        content: "Jaki projekt dziś realizujesz?",
+        createdAt: ISODate("2023-05-20T16:20:00Z"),
+        likes: 1
+      }
+    ]
+  },
+  {
+    _id: ObjectId("7b2c3d4e5f6a7b8c9d0e1f2a"),
+    userId: ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+    authorSummary: {
+      username: "anna_nowak",
+      displayName: "Anna Nowak"
+    },
+    content:
+      "Właśnie skończyłam czytać świetną książkę! Polecam 'Duma i uprzedzenie'.",
+    createdAt: ISODate("2023-05-21T10:15:00Z"),
+    updatedAt: ISODate("2023-05-21T10:15:00Z"),
+    stats: {
+      likes: 18,
+      comments: 1
+    },
+    maxComments: 10,
+    tags: ["książki", "czytanie"],
+    recentComments: [
+      {
+        _id: ObjectId("9d0e1f2a3b4c5d6e7f8a9b0c"),
+        userId: ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+        authorSummary: {
+          username: "jan_kowalski",
+          displayName: "Jan Kowalski"
+        },
+        content: "Też ją czytałem, świetna pozycja!",
+        createdAt: ISODate("2023-05-21T11:30:00Z"),
+        likes: 2
+      }
+    ]
+  }
+])
+ 
+db.Comments.insertMany([
+  {
+    _id: ObjectId("7b8c9d0e1f2a3b4c5d6e7f8a"),
+    postId: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+    userId: ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+    authorSummary: {
+      username: "anna_nowak",
+      displayName: "Anna Nowak"
+    },
+    content: "Całkowicie się zgadzam!",
+    createdAt: ISODate("2023-05-20T15:45:00Z"),
+    likes: 3
+  },
+  {
+    _id: ObjectId("8c9d0e1f2a3b4c5d6e7f8a9b"),
+    postId: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f"),
+    userId: ObjectId("2b3c4d5e6f7a8b9c0d1e2f3a"),
+    authorSummary: {
+      username: "marek_wisniewski",
+      displayName: "Marek Wiśniewski"
+    },
+    content: "Jaki projekt dziś realizujesz?",
+    createdAt: ISODate("2023-05-20T16:20:00Z"),
+    likes: 1
+  },
+  {
+    _id: ObjectId("9d0e1f2a3b4c5d6e7f8a9b0c"),
+    postId: ObjectId("7b2c3d4e5f6a7b8c9d0e1f2a"),
+    userId: ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c"),
+    authorSummary: {
+      username: "jan_kowalski",
+      displayName: "Jan Kowalski"
+    },
+    content: "Też ją czytałem, świetna pozycja!",
+    createdAt: ISODate("2023-05-21T11:30:00Z"),
+    likes: 2
+  }
+])
 ```
+Przykładowe polecenia:
+
+```js
+
+// Wyszukiwanie postów po tagach
+db.Posts.find({ tags: "programowanie" })
+  .sort({ createdAt: -1 })
+  .limit(20)
+  .toArray()
+
+//wynik
+        [
+        {
+          "_id": {"$oid": "6a1b2c3d4e5f6a7b8c9d0e1f"},
+          "authorSummary": {
+            "username": "jan_kowalski",
+            "displayName": "Jan Kowalski"
+          },
+          "content": "Dzisiaj jest piękny dzień na programowanie!",
+          "createdAt": {"$date": "2023-05-20T14:30:00.000Z"},
+          "maxComments": 20,
+          "recentComments": [
+            {
+              "_id": {"$oid": "7b8c9d0e1f2a3b4c5d6e7f8a"},
+              "userId": {"$oid": "1a2b3c4d5e6f7a8b9c0d1e2f"},
+              "authorSummary": {
+                "username": "anna_nowak",
+                "displayName": "Anna Nowak"
+              },
+              "content": "Całkowicie się zgadzam!",
+              "createdAt": {"$date": "2023-05-20T15:45:00.000Z"},
+              "likes": 3
+            },
+            {
+              "_id": {"$oid": "8c9d0e1f2a3b4c5d6e7f8a9b"},
+              "userId": {"$oid": "2b3c4d5e6f7a8b9c0d1e2f3a"},
+              "authorSummary": {
+                "username": "marek_wisniewski",
+                "displayName": "Marek Wiśniewski"
+              },
+              "content": "Jaki projekt dziś realizujesz?",
+              "createdAt": {"$date": "2023-05-20T16:20:00.000Z"},
+              "likes": 1
+            }
+          ],
+          "stats": {
+            "likes": 25,
+            "comments": 2
+          },
+          "tags": ["programowanie", "technologia"],
+          "updatedAt": {"$date": "2023-05-20T14:30:00.000Z"},
+          "userId": {"$oid": "5f8a7b2d9d3e7a1c3c7b4a1c"}
+        }
+        ]
+
+// Pobieranie wszystkich komentarzy do posta
+db.Comments
+        .find({ postId: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f") })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+//wynik
+
+[
+  {
+    "_id": {"$oid": "8c9d0e1f2a3b4c5d6e7f8a9b"},
+    "authorSummary": {
+      "username": "marek_wisniewski",
+      "displayName": "Marek Wiśniewski"
+    },
+    "content": "Jaki projekt dziś realizujesz?",
+    "createdAt": {"$date": "2023-05-20T16:20:00.000Z"},
+    "likes": 1,
+    "postId": {"$oid": "6a1b2c3d4e5f6a7b8c9d0e1f"},
+    "userId": {"$oid": "2b3c4d5e6f7a8b9c0d1e2f3a"}
+  },
+  {
+    "_id": {"$oid": "7b8c9d0e1f2a3b4c5d6e7f8a"},
+    "authorSummary": {
+      "username": "anna_nowak",
+      "displayName": "Anna Nowak"
+    },
+    "content": "Całkowicie się zgadzam!",
+    "createdAt": {"$date": "2023-05-20T15:45:00.000Z"},
+    "likes": 3,
+    "postId": {"$oid": "6a1b2c3d4e5f6a7b8c9d0e1f"},
+    "userId": {"$oid": "1a2b3c4d5e6f7a8b9c0d1e2f"}
+  }
+]
+
+// Aktualizacja licznika komentarzy w poście
+
+db.Posts.updateOne(
+        { _id: ObjectId("6a1b2c3d4e5f6a7b8c9d0e1f") },
+        {
+          $inc: { "stats.comments": 1 },
+          $push: {
+            recentComments: {
+              $each: [
+                {
+                  _id: new ObjectId(),
+                  userId: ObjectId("1a2b3c4d5e6f7a8b9c0d1e2f"),
+                  authorSummary: {
+                    username: "anna_nowak",
+                    displayName: "Anna Nowak"
+                  },
+                  content: "Nowy komentarz",
+                  createdAt: new Date(),
+                  likes: 0
+                }
+              ],
+              $sort: { createdAt: -1 },
+              $slice: 5
+            }
+          }
+        }
+)
+
+// Aktualizacja profilu użytkownika
+
+db.Users.updateOne(
+        { _id: ObjectId("5f8a7b2d9d3e7a1c3c7b4a1c") },
+        {
+          $set: {
+            "profile.displayName": "Jan K. Kowalski"
+          }
+        }
+)
+
+```
+
 
 ---
 
