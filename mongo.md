@@ -520,6 +520,171 @@ Spróbuj napisać to zapytanie wykorzystując
 ]  
 ```
 
+Kod:
+
+
+```js
+
+// Oryginalne kolekcje
+db.orders.aggregate([
+  {
+    $lookup: {
+        from: "orderdetails",
+        localField: "OrderID",
+        foreignField: "OrderID",
+        as: "Details"
+    }
+  },
+  {
+    $unwind: "$Details"
+  },
+  {
+    $lookup: {
+        from: "products",
+        localField: "Details.ProductID",
+        foreignField: "ProductID",
+        as: "Product"
+    }
+  },
+  {
+    $unwind: "$Product"
+  },
+  {
+    $lookup: {
+        from: "customers",
+        localField: "CustomerID",
+        foreignField: "CustomerID",
+        as: "Customer"
+    }
+  },
+  {
+    $unwind: "$Customer"
+  },
+  {
+    $addFields: {
+        Year: { $year: "$OrderDate" },
+        Month: { $month: "$OrderDate" },
+
+        Value: {
+          $multiply: [
+          "$Details.UnitPrice",
+          "$Details.Quantity",
+                    {$subtract: [1, "$Details.Discount"] }
+          ]
+        }
+    }
+  },
+  {
+    $group: {
+    _id: {
+    CustomerID: "$Customer.CustomerID",
+    Year: "$Year",
+    Month: "$Month"
+          },
+    CompanyName: { $first: "$Customer.CompanyName" },
+    Total: { $sum: "$Value" }
+    }
+  },
+  {
+    $group: {
+    _id: "$_id.CustomerID",
+    CustomerID: { $first: "$_id.CustomerID" },
+    CompanyName: { $first: "$CompanyName" },
+    Sale: {
+      $push: {
+        Year: "$_id.Year",
+        Month: "$_id.Month",
+        Total: { $round: ["$Total", 2] }
+      }
+    }
+    }
+  }
+])
+
+// OrdersInfo
+
+db.OrdersInfo.aggregate([
+  {
+    $project: {
+      customerID: "$Customer.CustomerID",
+      companyName: "$Customer.CompanyName",
+      year: { $year: "$Dates.OrderDate" },
+      month: { $month: "$Dates.OrderDate" },
+      orderTotal: "$OrderTotal"
+    }
+  },
+  {
+    $group: {
+      _id: {
+        customerID: "$customerID",
+        year: "$year",
+        month: "$month"
+      },
+      companyName: { $first: "$companyName" },
+      Total: { $sum: "$orderTotal" }
+    }
+  },
+  {
+    $group: {
+      _id: "$_id.customerID",
+      CustomerID: { $first: "$_id.customerID"},
+      CompanyName: { $first: "$companyName" },
+      Sale: {
+        $push: {
+          Year: "$_id.year",
+          Month: "$_id.month",
+          Total: {$round: ["$Total", 2]}
+        }
+      }
+    }
+  }
+])
+
+//CustomerInfo
+
+db.CustomerInfo.aggregate([
+  { $unwind: "$Orders" },
+  {
+    $project: {
+      CustomerID: 1,
+      CompanyName: 1,
+      Year: { $year: "$Orders.Dates.OrderDate" },
+      Month: { $month: "$Orders.Dates.OrderDate" },
+      OrderTotal: "$Orders.OrderTotal"
+    }
+  },
+  {
+    $group: {
+      _id: {
+        CustomerID: "$CustomerID",
+        Year: "$Year",
+        Month: "$Month"
+      },
+      CompanyName: { $first: "$CompanyName" },
+      TotalSales: { $sum: "$OrderTotal" }
+    }
+  },
+  {
+    $group: {
+      _id: "$_id.CustomerID",
+      CustomerID: {$first: "$_id.CustomerID" },
+      CompanyName: { $first: "$CompanyName" },
+      MonthlySales: {
+        $push: {
+          Year: "$_id.Year",
+          Month: "$_id.Month",
+          Total: {$round: ["$TotalSales", 2]}
+        }
+      }
+    }
+  }
+])
+
+
+
+```
+
+
 # e)
 
 Załóżmy że pojawia się nowe zamówienie dla klienta 'ALFKI',  zawierające dwa produkty 'Chai' oraz "Ikura"
