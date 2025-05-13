@@ -28,64 +28,64 @@ stwórz kolekcję  `OrdersInfo`  zawierającą następujące dane o zamówieniac
 - pojedynczy dokument opisuje jedno zamówienie
 
 ```js
-[  
-  {  
-    "_id": ...
-    
-    OrderID": ... numer zamówienia
-    
-    "Customer": {  ... podstawowe informacje o kliencie skladającym  
-      "CustomerID": ... identyfikator klienta
-      "CompanyName": ... nazwa klienta
-      "City": ... miasto 
-      "Country": ... kraj 
-    },  
-    
-    "Employee": {  ... podstawowe informacje o pracowniku obsługującym zamówienie
-      "EmployeeID": ... idntyfikator pracownika 
-      "FirstName": ... imie   
-      "LastName": ... nazwisko
-      "Title": ... stanowisko  
-     
-    },  
-    
-    "Dates": {
-       "OrderDate": ... data złożenia zamówienia
-       "RequiredDate": data wymaganej realizacji
-    }
+[
+    {
+        "_id": ...
 
-    "Orderdetails": [  ... pozycje/szczegóły zamówienia - tablica takich pozycji 
-      {  
-        "UnitPrice": ... cena
-        "Quantity": ... liczba sprzedanych jednostek towaru
-        "Discount": ... zniżka  
-        "Value": ... wartośc pozycji zamówienia
-        "product": { ... podstawowe informacje o produkcie 
-          "ProductID": ... identyfikator produktu  
-          "ProductName": ... nazwa produktu 
-          "QuantityPerUnit": ... opis/opakowannie
-          "CategoryID": ... identyfikator kategorii do której należy produkt
-          "CategoryName" ... nazwę tej kategorii
-        },  
-      },  
-      ...   
-    ],  
+            OrderID": ... numer zamówienia
 
-    "Freight": ... opłata za przesyłkę
-    "OrderTotal"  ... sumaryczna wartosc sprzedanych produktów
+        "Customer": {  ... podstawowe informacje o kliencie skladającym
+            "CustomerID": ... identyfikator klienta
+            "CompanyName": ... nazwa klienta
+            "City": ... miasto
+            "Country": ... kraj
+        },
 
-    "Shipment" : {  ... informacja o wysyłce
-        "Shipper": { ... podstawowe inf o przewoźniku 
-           "ShipperID":  
-            "CompanyName":
-        }  
-        ... inf o odbiorcy przesyłki
-        "ShipName": ...
-        "ShipAddress": ...
-        "ShipCity": ... 
-        "ShipCountry": ...
-    } 
-  } 
+        "Employee": {  ... podstawowe informacje o pracowniku obsługującym zamówienie
+            "EmployeeID": ... idntyfikator pracownika
+            "FirstName": ... imie
+            "LastName": ... nazwisko
+            "Title": ... stanowisko
+
+        },
+
+        "Dates": {
+            "OrderDate": ... data złożenia zamówienia
+            "RequiredDate": data wymaganej realizacji
+        }
+
+        "Orderdetails": [  ... pozycje/szczegóły zamówienia - tablica takich pozycji
+            {
+                "UnitPrice": ... cena
+                "Quantity": ... liczba sprzedanych jednostek towaru
+                "Discount": ... zniżka
+                "Value": ... wartośc pozycji zamówienia
+                "product": { ... podstawowe informacje o produkcie
+                    "ProductID": ... identyfikator produktu
+                    "ProductName": ... nazwa produktu
+                    "QuantityPerUnit": ... opis/opakowannie
+                    "CategoryID": ... identyfikator kategorii do której należy produkt
+                    "CategoryName" ... nazwę tej kategorii
+                },
+            },
+            ...
+        ],
+
+        "Freight": ... opłata za przesyłkę
+        "OrderTotal"  ... sumaryczna wartosc sprzedanych produktów
+
+        "Shipment" : {  ... informacja o wysyłce
+            "Shipper": { ... podstawowe inf o przewoźniku
+                "ShipperID":
+                    "CompanyName":
+}
+... inf o odbiorcy przesyłki
+"ShipName": ...
+"ShipAddress": ...
+"ShipCity": ...
+"ShipCountry": ...
+}
+}
 ]  
 ```
 
@@ -93,136 +93,136 @@ Kod:
 
 ```js
 db.orders.aggregate([
-	{
-		$match: { }
-	},
-	{
-		$lookup: {
-			from: "customers",
-			localField: "CustomerID",
-			foreignField: "CustomerID",
-			as: "Customer_tmp"
-		}
-	},
-	{
-		$unwind: "$Customer_tmp"
-	},
-	{
-		$lookup: {
-			from: "employees",
-			localField:"EmployeeID",
-			foreignField: "EmployeeID",
-			as: "Employee_tmp"
-		}
-	},
-	{
-		$unwind: "$Employee_tmp"
-	},
-	{
-		$lookup: {
-			from: "orderdetails",
-			localField: "OrderID",
-			foreignField: "OrderID",
-			as: "OrderDetails_tmp"
-		}
-	},
-	{
-		$unwind: "$OrderDetails_tmp"
-	},
-	{
-		$lookup: {
-			from: "products",
-			localField: "OrderDetails_tmp.ProductID",
-			foreignField: "ProductID",
-			as: "Product_tmp"
-		}
-	},
-	{
-		$unwind: "$Product_tmp"
-	},
-	{
-		$lookup: {
-			from: "categories",
-			localField: "Product_tmp.CategoryID",
-			foreignField: "CategoryID",
-			as: "Category_tmp"
-		}
-	},
-	{
-		$unwind: "$Category_tmp"
-	},
-	{
-		$lookup: {
-			from: "shippers",
-			localField: "ShipVia",
-			foreignField: "ShipperID",
-			as: "Shipper_tmp"
-		}
-	},
-	{
-		$unwind: "$Shipper_tmp"
-	},
-	{
-		$addFields: {
-			Customer: {
-				CustomerID: "$Customer_tmp.CustomerID",
-				CompanyName: "$Customer_tmp.CompanyName",
-				City: "$Customer_tmp.City",
-				Country: "$Customer_tmp.Country",
-			},
-			Employee: {
-				EmployeeID: "$Employee_tmp.EmployeeID",
-				FirstName: "$Employee_tmp.FirstName",
-				LastName: "$Employee_tmp.LastName",
-				Title: "$Employee_tmp.Title"
-			},
-			Dates: {
-				OrderDate: "$OrderDate",
-				RequiredDate: "$RequiredDate"
-			},
-			OrderDetails: {
-				UnitPrice: "$OrderDetails_tmp.UnitPrice",
-				Quantity: "$OrderDetails_tmp.Quantity",
-				Discount: "$OrderDetails_tmp.Discount",
-				Value: {
-					$multiply: [ "$OrderDetails_tmp.UnitPrice", "$OrderDetails_tmp.Quantity", { $subtract: [1, "$OrderDetails_tmp.Discount"] } ]
-				 },
-				Product: {
-					ProductID: "$Product_tmp.ProductID",
-					ProductName: "$Product_tmp.ProductName",
-					QuantityPerUnit: "$Product_tmp.QuantityPerUnit",
-					CategoryID: "$Product_tmp.CategoryID",
-					CategoryName: "$Category_tmp.CategoryName"
-				}
-			},
-			Shipment: {
-				Shipper: {
-					ShipperID: "$Shipper_tmp.ShipperID",
-					CompanyName: "$Shipper_tmp.CompanyName"
-				},
-				ShipName: "$ShipName",
-				ShipAddress: "$ShipAddress",
-				ShipCity: "$ShipCity",
-				ShipCountry: "$ShipCountry"
-			}
-		}
-	},
-	{
-		$group: {
-			_id: "$OrderID",
-			OrderTotal: { $sum : "$OrderDetails.Value"  },
-			OrderDetails: { $push : "$OrderDetails" },
-			OrderID: { $first: "$OrderID" },
-			Customer: { $first: "$Customer" },
-			Employee: { $first: "$Employee" },
-			Dates: { $first: "$Dates" },
-			Freight: { $first: "$Freight" },
-			Shipment: { $first: "$Shipment" }
-		}
-	},
-  {
-		$out: "OrdersInfo"
-	}
+    {
+        $match: { }
+    },
+    {
+        $lookup: {
+            from: "customers",
+            localField: "CustomerID",
+            foreignField: "CustomerID",
+            as: "Customer_tmp"
+        }
+    },
+    {
+        $unwind: "$Customer_tmp"
+    },
+    {
+        $lookup: {
+            from: "employees",
+            localField:"EmployeeID",
+            foreignField: "EmployeeID",
+            as: "Employee_tmp"
+        }
+    },
+    {
+        $unwind: "$Employee_tmp"
+    },
+    {
+        $lookup: {
+            from: "orderdetails",
+            localField: "OrderID",
+            foreignField: "OrderID",
+            as: "OrderDetails_tmp"
+        }
+    },
+    {
+        $unwind: "$OrderDetails_tmp"
+    },
+    {
+        $lookup: {
+            from: "products",
+            localField: "OrderDetails_tmp.ProductID",
+            foreignField: "ProductID",
+            as: "Product_tmp"
+        }
+    },
+    {
+        $unwind: "$Product_tmp"
+    },
+    {
+        $lookup: {
+            from: "categories",
+            localField: "Product_tmp.CategoryID",
+            foreignField: "CategoryID",
+            as: "Category_tmp"
+        }
+    },
+    {
+        $unwind: "$Category_tmp"
+    },
+    {
+        $lookup: {
+            from: "shippers",
+            localField: "ShipVia",
+            foreignField: "ShipperID",
+            as: "Shipper_tmp"
+        }
+    },
+    {
+        $unwind: "$Shipper_tmp"
+    },
+    {
+        $addFields: {
+            Customer: {
+                CustomerID: "$Customer_tmp.CustomerID",
+                CompanyName: "$Customer_tmp.CompanyName",
+                City: "$Customer_tmp.City",
+                Country: "$Customer_tmp.Country",
+            },
+            Employee: {
+                EmployeeID: "$Employee_tmp.EmployeeID",
+                FirstName: "$Employee_tmp.FirstName",
+                LastName: "$Employee_tmp.LastName",
+                Title: "$Employee_tmp.Title"
+            },
+            Dates: {
+                OrderDate: "$OrderDate",
+                RequiredDate: "$RequiredDate"
+            },
+            OrderDetails: {
+                UnitPrice: "$OrderDetails_tmp.UnitPrice",
+                Quantity: "$OrderDetails_tmp.Quantity",
+                Discount: "$OrderDetails_tmp.Discount",
+                Value: {
+                    $multiply: [ "$OrderDetails_tmp.UnitPrice", "$OrderDetails_tmp.Quantity", { $subtract: [1, "$OrderDetails_tmp.Discount"] } ]
+                },
+                Product: {
+                    ProductID: "$Product_tmp.ProductID",
+                    ProductName: "$Product_tmp.ProductName",
+                    QuantityPerUnit: "$Product_tmp.QuantityPerUnit",
+                    CategoryID: "$Product_tmp.CategoryID",
+                    CategoryName: "$Category_tmp.CategoryName"
+                }
+            },
+            Shipment: {
+                Shipper: {
+                    ShipperID: "$Shipper_tmp.ShipperID",
+                    CompanyName: "$Shipper_tmp.CompanyName"
+                },
+                ShipName: "$ShipName",
+                ShipAddress: "$ShipAddress",
+                ShipCity: "$ShipCity",
+                ShipCountry: "$ShipCountry"
+            }
+        }
+    },
+    {
+        $group: {
+            _id: "$OrderID",
+            OrderTotal: { $sum : "$OrderDetails.Value"  },
+            OrderDetails: { $push : "$OrderDetails" },
+            OrderID: { $first: "$OrderID" },
+            Customer: { $first: "$Customer" },
+            Employee: { $first: "$Employee" },
+            Dates: { $first: "$Dates" },
+            Freight: { $first: "$Freight" },
+            Shipment: { $first: "$Shipment" }
+        }
+    },
+    {
+        $out: "OrdersInfo"
+    }
 ])
 ```
 
@@ -232,20 +232,20 @@ stwórz kolekcję  `CustomerInfo`  zawierającą następujące dane kazdym klenc
 - pojedynczy dokument opisuje jednego klienta
 
 ```js
-[  
-  {  
-    "_id": ...
-    
-    "CustomerID": ... identyfikator klienta
-    "CompanyName": ... nazwa klienta
-    "City": ... miasto 
-    "Country": ... kraj 
+[
+    {
+        "_id": ...
 
-	"Orders": [ ... tablica zamówień klienta o strukturze takiej jak w punkcie a) (oczywiście bez informacji o kliencie)
-	  
-	]
+            "CustomerID": ... identyfikator klienta
+"CompanyName": ... nazwa klienta
+"City": ... miasto
+"Country": ... kraj
 
-		  
+"Orders": [ ... tablica zamówień klienta o strukturze takiej jak w punkcie a) (oczywiście bez informacji o kliencie)
+
+]
+
+
 ]  
 ```
 
@@ -281,212 +281,212 @@ db.OrdersInfo.aggregate([
 
 ```
 
-# c) 
+# c)
 
 Napisz polecenie/zapytanie: Dla każdego klienta pokaż wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
 - Spróbuj napisać to zapytanie wykorzystując
-	- oryginalne kolekcje (`customers, orders, orderdertails, products, categories`)
-	- kolekcję `OrderInfo`
-	- kolekcję `CustomerInfo`
+    - oryginalne kolekcje (`customers, orders, orderdertails, products, categories`)
+    - kolekcję `OrderInfo`
+    - kolekcję `CustomerInfo`
 
 - porównaj zapytania/polecenia/wyniki
 
 ```js
-[  
-  {  
-    "_id": 
-    
-    "CustomerID": ... identyfikator klienta
-    "CompanyName": ... nazwa klienta
-	"ConfectionsSale97": ... wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
+[
+    {
+        "_id":
 
-  }		  
+            "CustomerID": ... identyfikator klienta
+"CompanyName": ... nazwa klienta
+"ConfectionsSale97": ... wartość zakupionych przez niego produktów z kategorii 'Confections'  w 1997r
+
+}
 ]  
 ```
 
-Kod: 
+Kod:
 
 ```js
 // Oryginalne kolekcje:
 db.orders.aggregate([
-	{
-		$lookup: {
-			from: "orderdetails",
-			localField: "OrderID",
-			foreignField: "OrderID",
-			as: "Orderdetails_tmp"
-		}
-	},
-	{
-		$unwind: "$Orderdetails_tmp"
-	},
-	{
-		$lookup: {
-			from: "products",
-			localField: "Orderdetails_tmp.ProductID",
-			foreignField: "ProductID",
-			as: "Products_tmp"
-		}
-	},
-	{
-		$unwind: "$Products_tmp"
-	},
-	{
-		$lookup: {
-			from: "categories",
-			localField: "Products_tmp.CategoryID",
-			foreignField: "CategoryID",
-			as: "Category_tmp"
-		}
-	},
-	{
-		$unwind: "$Category_tmp"
-	},
-	{
-		$match: {
-			"Category_tmp.CategoryName": "Confections",
-			$expr: {
-				$eq: [{ $year: "$OrderDate" }, 1997]
-			}
-		 }
-	},
-	{
-		$addFields: {
-			Value: {
-				$multiply: [ "$Orderdetails_tmp.UnitPrice", "$Orderdetails_tmp.Quantity", { $subtract: [1, "$Orderdetails_tmp.Discount"] } ]
-			 },
-		}
-	},
-	{
-		$lookup: {
-			from: "customers",
-			localField: "CustomerID",
-			foreignField: "CustomerID",
-			as: "Customer_tmp"
-		}
-	},
-	{
-		$unwind: "$Customer_tmp"
-	},
-	{
-		$group: {
-			_id: "$CustomerID",
-			CustomerID: { $first: "$CustomerID" },
-			CompanyName: { $first: "$Customer_tmp.CompanyName" },
-			ConfectionsSale97: { $sum: "$Value" }
-		}
-	},
-	{
-		$project: {
-			_id: 0,
-			CustomerID: 1,
-			CompanyName: 1,
-			ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
-		}
-	}
+    {
+        $lookup: {
+            from: "orderdetails",
+            localField: "OrderID",
+            foreignField: "OrderID",
+            as: "Orderdetails_tmp"
+        }
+    },
+    {
+        $unwind: "$Orderdetails_tmp"
+    },
+    {
+        $lookup: {
+            from: "products",
+            localField: "Orderdetails_tmp.ProductID",
+            foreignField: "ProductID",
+            as: "Products_tmp"
+        }
+    },
+    {
+        $unwind: "$Products_tmp"
+    },
+    {
+        $lookup: {
+            from: "categories",
+            localField: "Products_tmp.CategoryID",
+            foreignField: "CategoryID",
+            as: "Category_tmp"
+        }
+    },
+    {
+        $unwind: "$Category_tmp"
+    },
+    {
+        $match: {
+            "Category_tmp.CategoryName": "Confections",
+            $expr: {
+                $eq: [{ $year: "$OrderDate" }, 1997]
+            }
+        }
+    },
+    {
+        $addFields: {
+            Value: {
+                $multiply: [ "$Orderdetails_tmp.UnitPrice", "$Orderdetails_tmp.Quantity", { $subtract: [1, "$Orderdetails_tmp.Discount"] } ]
+            },
+        }
+    },
+    {
+        $lookup: {
+            from: "customers",
+            localField: "CustomerID",
+            foreignField: "CustomerID",
+            as: "Customer_tmp"
+        }
+    },
+    {
+        $unwind: "$Customer_tmp"
+    },
+    {
+        $group: {
+            _id: "$CustomerID",
+            CustomerID: { $first: "$CustomerID" },
+            CompanyName: { $first: "$Customer_tmp.CompanyName" },
+            ConfectionsSale97: { $sum: "$Value" }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            CustomerID: 1,
+            CompanyName: 1,
+            ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
+        }
+    }
 ])
 
 // Kolekcja OrdersInfo
 db.OrdersInfo.aggregate([
-	{
-		$match: {
-			$expr: { $eq: [ {$year: "$Dates.OrderDate"}, 1997 ] },
-		}
-	},
-	{
-		$addFields: {
-			filteredOrderDetails: {
-				$filter: {
-					input: "$OrderDetails",
-					as: "od",
-					cond: { $eq: [ "$$od.Product.CategoryName", "Confections" ] }
-				}
-			}
-		}
-	},
-	{
-		$addFields: {
-			ConfectionsSale97: {
-				$sum: "$filteredOrderDetails.Value"
-			},
-			CustomerID: "$Customer.CustomerID",
-			CompanyName: "$Customer.CompanyName"
-		}
-	},
-	{
-		$match: {
-			ConfectionsSale97: { $gt: 0 }
-		}
-	},
-	{
-		$group: {
-				_id: "$CustomerID",
-				CustomerID: { $first: "$CustomerID" },
-				CompanyName: { $first: "$Customer.CompanyName" },
-				ConfectionsSale97: { $sum: "$ConfectionsSale97" }
-		}
-	},
-	{
-		$project: {
-			_id: 0,
-			CustomerID: 1,
-			CompanyName: 1,
-			ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
-		}
-	}
+    {
+        $match: {
+            $expr: { $eq: [ {$year: "$Dates.OrderDate"}, 1997 ] },
+        }
+    },
+    {
+        $addFields: {
+            filteredOrderDetails: {
+                $filter: {
+                    input: "$OrderDetails",
+                    as: "od",
+                    cond: { $eq: [ "$$od.Product.CategoryName", "Confections" ] }
+                }
+            }
+        }
+    },
+    {
+        $addFields: {
+            ConfectionsSale97: {
+                $sum: "$filteredOrderDetails.Value"
+            },
+            CustomerID: "$Customer.CustomerID",
+            CompanyName: "$Customer.CompanyName"
+        }
+    },
+    {
+        $match: {
+            ConfectionsSale97: { $gt: 0 }
+        }
+    },
+    {
+        $group: {
+            _id: "$CustomerID",
+            CustomerID: { $first: "$CustomerID" },
+            CompanyName: { $first: "$Customer.CompanyName" },
+            ConfectionsSale97: { $sum: "$ConfectionsSale97" }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            CustomerID: 1,
+            CompanyName: 1,
+            ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
+        }
+    }
 ])
 
 // Kolekcja CustomerInfo
 db.CustomerInfo.aggregate([
-	{
-		$addFields: {
-			Orders97: {
-				$filter: {
-					input: "$Orders",
-					as: "od",
-					cond: { $eq: [ {$year: "$$od.Dates.OrderDate"}, 1997 ] }
-					}
-			}
-		}
-	},
-	{
-		$unwind: "$Orders97"
-	},
-	{
-		$addFields: {
-			Confections97: {
-				$filter: {
-					input: "$Orders97.OrderDetails",
-					as: "od",
-					cond: { $eq: [ "$$od.Product.CategoryName", "Confections" ] }
-				}
-			}
-		}
-	},
-	{
-		$match: {
-			Confections97: { $ne: [], $exists: true }
-		 }
-	},
-	{
-		$unwind: "$Confections97"
-	},
-	{
-		$group: {
-			_id: "$CustomerID",
-			CustomerID: { $first: "$CustomerID" },
-			CompanyName: { $first: "$CompanyName"},
-			ConfectionsSale97: { $sum: "$Confections97.Value" }
-		}
-	},
-		{
-  		$project: {
-  			_id: 0,
-  			CustomerID: 1,
-  			CompanyName: 1,
-  			ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
-  		}
-  	}
+    {
+        $addFields: {
+            Orders97: {
+                $filter: {
+                    input: "$Orders",
+                    as: "od",
+                    cond: { $eq: [ {$year: "$$od.Dates.OrderDate"}, 1997 ] }
+                }
+            }
+        }
+    },
+    {
+        $unwind: "$Orders97"
+    },
+    {
+        $addFields: {
+            Confections97: {
+                $filter: {
+                    input: "$Orders97.OrderDetails",
+                    as: "od",
+                    cond: { $eq: [ "$$od.Product.CategoryName", "Confections" ] }
+                }
+            }
+        }
+    },
+    {
+        $match: {
+            Confections97: { $ne: [], $exists: true }
+        }
+    },
+    {
+        $unwind: "$Confections97"
+    },
+    {
+        $group: {
+            _id: "$CustomerID",
+            CustomerID: { $first: "$CustomerID" },
+            CompanyName: { $first: "$CompanyName"},
+            ConfectionsSale97: { $sum: "$Confections97.Value" }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            CustomerID: 1,
+            CompanyName: 1,
+            ConfectionsSale97: { $round: ["$ConfectionsSale97", 2] }
+        }
+    }
 ])
 ```
 
@@ -494,29 +494,29 @@ db.CustomerInfo.aggregate([
 
 Napisz polecenie/zapytanie:  Dla każdego klienta poaje wartość sprzedaży z podziałem na lata i miesiące
 Spróbuj napisać to zapytanie wykorzystując
-	- oryginalne kolekcje (`customers, orders, orderdertails, products, categories`)
-	- kolekcję `OrderInfo`
-	- kolekcję `CustomerInfo`
+- oryginalne kolekcje (`customers, orders, orderdertails, products, categories`)
+- kolekcję `OrderInfo`
+- kolekcję `CustomerInfo`
 
 - porównaj zapytania/polecenia/wyniki
 
 ```js
-[  
-  {  
-    "_id": 
-    
-    "CustomerID": ... identyfikator klienta
-    "CompanyName": ... nazwa klienta
+[
+    {
+        "_id":
 
-	"Sale": [ ... tablica zawierająca inf o sprzedazy
-	    {
-            "Year":  ....
-            "Month": ....
-            "Total": ...	    
-	    }
-	    ...
-	]
-  }		  
+            "CustomerID": ... identyfikator klienta
+"CompanyName": ... nazwa klienta
+
+"Sale": [ ... tablica zawierająca inf o sprzedazy
+    {
+        "Year":  ....
+        "Month": ....
+        "Total": ...
+    }
+    ...
+]
+}
 ]  
 ```
 
@@ -527,157 +527,157 @@ Kod:
 
 // Oryginalne kolekcje
 db.orders.aggregate([
-  {
-    $lookup: {
-        from: "orderdetails",
-        localField: "OrderID",
-        foreignField: "OrderID",
-        as: "Details"
-    }
-  },
-  {
-    $unwind: "$Details"
-  },
-  {
-    $lookup: {
-        from: "products",
-        localField: "Details.ProductID",
-        foreignField: "ProductID",
-        as: "Product"
-    }
-  },
-  {
-    $unwind: "$Product"
-  },
-  {
-    $lookup: {
-        from: "customers",
-        localField: "CustomerID",
-        foreignField: "CustomerID",
-        as: "Customer"
-    }
-  },
-  {
-    $unwind: "$Customer"
-  },
-  {
-    $addFields: {
-        Year: { $year: "$OrderDate" },
-        Month: { $month: "$OrderDate" },
+    {
+        $lookup: {
+            from: "orderdetails",
+            localField: "OrderID",
+            foreignField: "OrderID",
+            as: "Details"
+        }
+    },
+    {
+        $unwind: "$Details"
+    },
+    {
+        $lookup: {
+            from: "products",
+            localField: "Details.ProductID",
+            foreignField: "ProductID",
+            as: "Product"
+        }
+    },
+    {
+        $unwind: "$Product"
+    },
+    {
+        $lookup: {
+            from: "customers",
+            localField: "CustomerID",
+            foreignField: "CustomerID",
+            as: "Customer"
+        }
+    },
+    {
+        $unwind: "$Customer"
+    },
+    {
+        $addFields: {
+            Year: { $year: "$OrderDate" },
+            Month: { $month: "$OrderDate" },
 
-        Value: {
-          $multiply: [
-          "$Details.UnitPrice",
-          "$Details.Quantity",
+            Value: {
+                $multiply: [
+                    "$Details.UnitPrice",
+                    "$Details.Quantity",
                     {$subtract: [1, "$Details.Discount"] }
-          ]
+                ]
+            }
+        }
+    },
+    {
+        $group: {
+            _id: {
+                CustomerID: "$Customer.CustomerID",
+                Year: "$Year",
+                Month: "$Month"
+            },
+            CompanyName: { $first: "$Customer.CompanyName" },
+            Total: { $sum: "$Value" }
+        }
+    },
+    {
+        $group: {
+            _id: "$_id.CustomerID",
+            CustomerID: { $first: "$_id.CustomerID" },
+            CompanyName: { $first: "$CompanyName" },
+            Sale: {
+                $push: {
+                    Year: "$_id.Year",
+                    Month: "$_id.Month",
+                    Total: { $round: ["$Total", 2] }
+                }
+            }
         }
     }
-  },
-  {
-    $group: {
-    _id: {
-    CustomerID: "$Customer.CustomerID",
-    Year: "$Year",
-    Month: "$Month"
-          },
-    CompanyName: { $first: "$Customer.CompanyName" },
-    Total: { $sum: "$Value" }
-    }
-  },
-  {
-    $group: {
-    _id: "$_id.CustomerID",
-    CustomerID: { $first: "$_id.CustomerID" },
-    CompanyName: { $first: "$CompanyName" },
-    Sale: {
-      $push: {
-        Year: "$_id.Year",
-        Month: "$_id.Month",
-        Total: { $round: ["$Total", 2] }
-      }
-    }
-    }
-  }
 ])
 
 // OrdersInfo
 
 db.OrdersInfo.aggregate([
-  {
-    $project: {
-      customerID: "$Customer.CustomerID",
-      companyName: "$Customer.CompanyName",
-      year: { $year: "$Dates.OrderDate" },
-      month: { $month: "$Dates.OrderDate" },
-      orderTotal: "$OrderTotal"
-    }
-  },
-  {
-    $group: {
-      _id: {
-        customerID: "$customerID",
-        year: "$year",
-        month: "$month"
-      },
-      companyName: { $first: "$companyName" },
-      Total: { $sum: "$orderTotal" }
-    }
-  },
-  {
-    $group: {
-      _id: "$_id.customerID",
-      CustomerID: { $first: "$_id.customerID"},
-      CompanyName: { $first: "$companyName" },
-      Sale: {
-        $push: {
-          Year: "$_id.year",
-          Month: "$_id.month",
-          Total: {$round: ["$Total", 2]}
+    {
+        $project: {
+            customerID: "$Customer.CustomerID",
+            companyName: "$Customer.CompanyName",
+            year: { $year: "$Dates.OrderDate" },
+            month: { $month: "$Dates.OrderDate" },
+            orderTotal: "$OrderTotal"
         }
-      }
+    },
+    {
+        $group: {
+            _id: {
+                customerID: "$customerID",
+                year: "$year",
+                month: "$month"
+            },
+            companyName: { $first: "$companyName" },
+            Total: { $sum: "$orderTotal" }
+        }
+    },
+    {
+        $group: {
+            _id: "$_id.customerID",
+            CustomerID: { $first: "$_id.customerID"},
+            CompanyName: { $first: "$companyName" },
+            Sale: {
+                $push: {
+                    Year: "$_id.year",
+                    Month: "$_id.month",
+                    Total: {$round: ["$Total", 2]}
+                }
+            }
+        }
     }
-  }
 ])
 
 //CustomerInfo
 
 db.CustomerInfo.aggregate([
-  { $unwind: "$Orders" },
-  {
-    $project: {
-      CustomerID: 1,
-      CompanyName: 1,
-      Year: { $year: "$Orders.Dates.OrderDate" },
-      Month: { $month: "$Orders.Dates.OrderDate" },
-      OrderTotal: "$Orders.OrderTotal"
-    }
-  },
-  {
-    $group: {
-      _id: {
-        CustomerID: "$CustomerID",
-        Year: "$Year",
-        Month: "$Month"
-      },
-      CompanyName: { $first: "$CompanyName" },
-      TotalSales: { $sum: "$OrderTotal" }
-    }
-  },
-  {
-    $group: {
-      _id: "$_id.CustomerID",
-      CustomerID: {$first: "$_id.CustomerID" },
-      CompanyName: { $first: "$CompanyName" },
-      Sale: {
-        $push: {
-          Year: "$_id.Year",
-          Month: "$_id.Month",
-          Total: {$round: ["$TotalSales", 2]}
+    { $unwind: "$Orders" },
+    {
+        $project: {
+            CustomerID: 1,
+            CompanyName: 1,
+            Year: { $year: "$Orders.Dates.OrderDate" },
+            Month: { $month: "$Orders.Dates.OrderDate" },
+            OrderTotal: "$Orders.OrderTotal"
         }
-      }
+    },
+    {
+        $group: {
+            _id: {
+                CustomerID: "$CustomerID",
+                Year: "$Year",
+                Month: "$Month"
+            },
+            CompanyName: { $first: "$CompanyName" },
+            TotalSales: { $sum: "$OrderTotal" }
+        }
+    },
+    {
+        $group: {
+            _id: "$_id.CustomerID",
+            CustomerID: {$first: "$_id.CustomerID" },
+            CompanyName: { $first: "$CompanyName" },
+            Sale: {
+                $push: {
+                    Year: "$_id.Year",
+                    Month: "$_id.Month",
+                    Total: {$round: ["$TotalSales", 2]}
+                }
+            }
+        }
     }
-  }
 ])
 
 
@@ -689,17 +689,17 @@ db.CustomerInfo.aggregate([
 
 Załóżmy że pojawia się nowe zamówienie dla klienta 'ALFKI',  zawierające dwa produkty 'Chai' oraz "Ikura"
 - pozostałe pola w zamówieniu (ceny, liczby sztuk prod, inf o przewoźniku itp. możesz uzupełnić wg własnego uznania)
-Napisz polecenie które dodaje takie zamówienie do bazy
+  Napisz polecenie które dodaje takie zamówienie do bazy
 - aktualizując oryginalne kolekcje `orders`, `orderdetails`
 - aktualizując kolekcję `OrderInfo`
 - aktualizując kolekcję `CustomerInfo`
 
-Napisz polecenie 
+Napisz polecenie
 - aktualizując oryginalną kolekcję orderdetails`
 - aktualizując kolekcję `OrderInfo`
 - aktualizując kolekcję `CustomerInfo`
 
-Kod: 
+Kod:
 ```js
 // aktualizując oryginalne kolekcje `orders`, `orderdetails`
 
@@ -712,36 +712,36 @@ const newOrderID = lastOrderDoc.OrderID + 1;
 db.orders.find()
 
 const orderResult = db.orders.insertOne({
-	OrderID: newOrderID,
-	CustomerID: "ALFKI",
-	EmployeeID: 3,
-	OrderDate: new Date(2024, 4, 11),
-	RequiredDate: new Date(2025, 5, 11),
-	ShippedDate: new Date(2025, 4, 8),
-	ShipVia: 2,
-	Freight: 15.80,
-	ShipName: "Myslovitz",
-	ShipAddress: "Szkolna 17",
-	ShipCity: "Białystok",
-	ShipRegion: null,
-	ShipPostalCode: "23-535",
-	ShipCountry: "Poland"
+    OrderID: newOrderID,
+    CustomerID: "ALFKI",
+    EmployeeID: 3,
+    OrderDate: new Date(2024, 4, 11),
+    RequiredDate: new Date(2025, 5, 11),
+    ShippedDate: new Date(2025, 4, 8),
+    ShipVia: 2,
+    Freight: 15.80,
+    ShipName: "Myslovitz",
+    ShipAddress: "Szkolna 17",
+    ShipCity: "Białystok",
+    ShipRegion: null,
+    ShipPostalCode: "23-535",
+    ShipCountry: "Poland"
 })
 
 db.orderdetails.insertMany([{
-	Discount: 0,
-	OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0],
-	ProductID: chaiProductInfo.ProductID,
-	Quantity: 5,
-	UnitPrice: chaiProductInfo.UnitPrice
+    Discount: 0,
+    OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0],
+    ProductID: chaiProductInfo.ProductID,
+    Quantity: 5,
+    UnitPrice: chaiProductInfo.UnitPrice
 },
-{
-	Discount: 0,
-	OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0],
-	ProductID: ikuraProductInfo.ProductID,
-	Quantity: 5,
-	UnitPrice: ikuraProductInfo.UnitPrice
-}])
+    {
+        Discount: 0,
+        OrderID: db.orders.find().sort({ OrderID: -1 }).limit(1).toArray()[0],
+        ProductID: ikuraProductInfo.ProductID,
+        Quantity: 5,
+        UnitPrice: ikuraProductInfo.UnitPrice
+    }])
 
 // aktualizując kolekcję `OrderInfo`
 const alfki = db.customers.findOne({ CustomerID: "ALFKI" });
@@ -755,71 +755,71 @@ const orderTotal = chaiValue + ikuraValue;
 db.OrdersInfo.find().sort({OrderID: -1})
 
 db.OrdersInfo.insertOne({
-	Customer: {
-		CustomerID: alfki.CustomerID,
-		CompanyName: alfki.CompanyName,
-		City: alfki.City,
-		Country: alfki.Country
-	},
-	Dates: {
-		OrderDate: new Date(2024, 4, 11),
-		RequiredDate: new Date(2025, 5, 11)
-	},
-	Employee: {
-		EmployeeID: employee.EmployeeID,
-		FirstName: employee.FirstName,
-		LastName: employee.LastName,
-		Title: employee.Title
-	},
-	Freight: 312.3,
-	OrderDetails: [
-		{
-			UnitPrice: chaiProductInfo.UnitPrice,
-			Quantity: 5,
-			Discount: 0,
-			Value: chaiValue,
-			Product: {
-				ProductID: chaiProductInfo.ProductID,
-				ProductName: chaiProductInfo.ProductName,
-				QuantityPerUnit: chaiProductInfo.QuantityPerUnit,
-				CategoryID: chaiProductInfo.CategoryID,
-				CategoryName: db.categories.find( { CategoryID: chaiProductInfo.CategoryID } ).toArray()[0].CategoryName
-			}
-		},
-		{
-			UnitPrice: ikuraProductInfo.UnitPrice,
-			Quantity: 10,
-			Discount: 0,
-			Value: ikuraValue,
-			Product: {
-				ProductID: ikuraProductInfo.ProductID,
-				ProductName: ikuraProductInfo.ProductName,
-				QuantityPerUnit: ikuraProductInfo.QuantityPerUnit,
-				CategoryID: ikuraProductInfo.CategoryID,
-				CategoryName: db.categories.find( { CategoryID: ikuraProductInfo.CategoryID } ).toArray()[0].CategoryName
-			}
-		}
-	],
-	OrderID: newOrderID,
-	OrderTotal: orderTotal,
-	Shipment: {
-		Shipper: {
-			ShipperID: 30,
-			CompanyName: "Kult"
-		},
-		ShipName: "Brooklyn",
-		ShipAddress: "Bruhhh",
-		ShipCity: "Kraków",
-		ShipCountry: "Poland",
-	}
+    Customer: {
+        CustomerID: alfki.CustomerID,
+        CompanyName: alfki.CompanyName,
+        City: alfki.City,
+        Country: alfki.Country
+    },
+    Dates: {
+        OrderDate: new Date(2024, 4, 11),
+        RequiredDate: new Date(2025, 5, 11)
+    },
+    Employee: {
+        EmployeeID: employee.EmployeeID,
+        FirstName: employee.FirstName,
+        LastName: employee.LastName,
+        Title: employee.Title
+    },
+    Freight: 312.3,
+    OrderDetails: [
+        {
+            UnitPrice: chaiProductInfo.UnitPrice,
+            Quantity: 5,
+            Discount: 0,
+            Value: chaiValue,
+            Product: {
+                ProductID: chaiProductInfo.ProductID,
+                ProductName: chaiProductInfo.ProductName,
+                QuantityPerUnit: chaiProductInfo.QuantityPerUnit,
+                CategoryID: chaiProductInfo.CategoryID,
+                CategoryName: db.categories.find( { CategoryID: chaiProductInfo.CategoryID } ).toArray()[0].CategoryName
+            }
+        },
+        {
+            UnitPrice: ikuraProductInfo.UnitPrice,
+            Quantity: 10,
+            Discount: 0,
+            Value: ikuraValue,
+            Product: {
+                ProductID: ikuraProductInfo.ProductID,
+                ProductName: ikuraProductInfo.ProductName,
+                QuantityPerUnit: ikuraProductInfo.QuantityPerUnit,
+                CategoryID: ikuraProductInfo.CategoryID,
+                CategoryName: db.categories.find( { CategoryID: ikuraProductInfo.CategoryID } ).toArray()[0].CategoryName
+            }
+        }
+    ],
+    OrderID: newOrderID,
+    OrderTotal: orderTotal,
+    Shipment: {
+        Shipper: {
+            ShipperID: 30,
+            CompanyName: "Kult"
+        },
+        ShipName: "Brooklyn",
+        ShipAddress: "Bruhhh",
+        ShipCity: "Kraków",
+        ShipCountry: "Poland",
+    }
 })
 ```
 
 # f)
 
-Napisz polecenie które modyfikuje zamówienie dodane w pkt e)  zwiększając zniżkę  o 5% (dla każdej pozycji tego zamówienia) 
+Napisz polecenie które modyfikuje zamówienie dodane w pkt e)  zwiększając zniżkę  o 5% (dla każdej pozycji tego zamówienia)
 
-Napisz polecenie 
+Napisz polecenie
 - aktualizując oryginalną kolekcję `orderdetails`
 - aktualizując kolekcję `OrderInfo`
 - aktualizując kolekcję `CustomerInfo`
@@ -832,8 +832,8 @@ W raporcie należy zamieścić kod poleceń oraz uzyskany rezultat, np wynik  p
 
 ## Zadanie 1  - rozwiązanie
 
-> Wyniki: 
-> 
+> Wyniki:
+>
 > przykłady, kod, zrzuty ekranów, komentarz ...
 
 a)
@@ -860,16 +860,16 @@ Należy wybrać jedno zagadnienie/problem (A lub B lub C)
 
 Przykład A
 - Wykładowcy, przedmioty, studenci, oceny
-	- Wykładowcy prowadzą zajęcia z poszczególnych przedmiotów
-	- Studenci uczęszczają na zajęcia
-	- Wykładowcy wystawiają oceny studentom
-	- Studenci oceniają zajęcia
+    - Wykładowcy prowadzą zajęcia z poszczególnych przedmiotów
+    - Studenci uczęszczają na zajęcia
+    - Wykładowcy wystawiają oceny studentom
+    - Studenci oceniają zajęcia
 
 Przykład B
 - Firmy, wycieczki, osoby
-	- Firmy organizują wycieczki
-	- Osoby rezerwują miejsca/wykupują bilety
-	- Osoby oceniają wycieczki
+    - Firmy organizują wycieczki
+    - Osoby rezerwują miejsca/wykupują bilety
+    - Osoby oceniają wycieczki
 
 Przykład C
 - Własny przykład o podobnym stopniu złożoności
@@ -890,9 +890,268 @@ Do sprawozdania należy kompletny zrzut wykonanych/przygotowanych baz danych (ta
 
 ## Zadanie 2  - rozwiązanie
 
-> Wyniki: 
-> 
+> Wyniki:
+>
 > przykłady, kod, zrzuty ekranów, komentarz ...
+
+### Wariant 1: Struktura z oddzielnymi kolekcjami i referencjami
+W tym podejściu dane są podzielone na odrębne kolekcje, które są ze sobą powiązane za pomocą referencji.
+
+Kolekcja Users
+````js
+{
+    "_id": ObjectId,
+        "username": String,
+        "email": String,
+        "password": String,
+        "displayName": String,
+        "bio": String,
+        "joinDate": Date,
+        "followersCount": Number,
+        "followingCount": Number,
+        "postsCount": Number
+}
+````
+Kolekcja Posts
+````js
+{
+    "_id": ObjectId, 
+        "userId": ObjectId,
+        "content": String,
+        "createdAt": Date,
+        "updatedAt": Date,
+        "likesCount": Number,
+        "commentsCount": Number,
+        "maxComments": Number,  // Limit komentarzy ustawiony przez użytkownika
+        "tags": [array]
+}
+````
+
+Kolekcja Comments
+````js
+{
+    "_id": ObjectId,
+        "postId": ObjectId,
+        "userId": ObjectId,
+        "content": String,
+        "createdAt": Date,
+        "likesCount": Number
+}
+````
+
+Kolekcja Follows
+````js
+{
+    "_id": ObjectId,
+        "followerId": ObjectId,
+        "followingId": ObjectId,
+        "createdAt": Date
+}
+````
+
+Kolekcja Likes
+````js
+{
+        "_id": ObjectId,
+        "userId": ObjectId,
+        "postId": ObjectId,
+        "createdAt": Date
+}
+````
+
+#### Zalety:
+
+- Czysta struktura danych z jasno zdefiniowanymi relacjami
+
+- Łatwość aktualizacji pojedynczych elementów (np. liczników)
+
+- Mniejsze dokumenty, co ułatwia ich przetwarzanie
+
+- Dobra skalowalność dla dużej liczby użytkowników i postów
+
+#### Wady:
+
+- Konieczność wykonywania wielu zapytań do bazy danych w celu pobrania powiązanych danych
+
+- Większa złożoność zapytań przy pobieraniu kompletnych informacji
+
+- Trudniejsze zarządzanie spójnością danych
+
+#### Przykładowe zapytanie - pobieranie posta z informacjami o autorze i komentarzami:
+
+### Wariant 2: Struktura z dokumentami zagnieżdżonymi
+W tym podejściu wykorzystujemy zagnieżdżone dokumenty, aby zmniejszyć liczbę zapytań do bazy danych.
+
+Kolekcja Users
+````js
+{
+    "_id": ObjectId,
+        "username": String,
+        "email": String,
+        "password": String,
+        "displayName": String,
+        "bio": String,
+        "joinDate": Date,
+        "stats": {
+            "followers": Number,
+            "following": Number,
+            "posts": Number
+        }
+}
+````
+Kolekcja Posts z zagnieżdżonymi komentarzami
+````js
+{
+    "_id": ObjectId,
+        "author": {
+        "_id": ObjectId,
+            "username": String,
+            "displayName": String
+        },
+    "content": String,
+        "createdAt": Date,
+        "updatedAt": Date,
+        "likes": Number,
+        "maxComments": Number,
+        "tags": ["programowanie", "technologia"],
+        "comments": [
+        {
+            "_id": ObjectId,
+            "author": {
+                "_id": ObjectId,
+                "username": String,
+                "displayName": String
+            },
+            "content": String,
+            "createdAt": Date,
+            "likes": Number
+        }
+    ]
+}
+
+````
+#### Zalety:
+
+- Mniejsza liczba zapytań do bazy danych
+
+- Szybsze pobieranie kompletnych danych o poście wraz z komentarzami
+
+- Prostsze zapytania do bazy danych
+
+- Lepsza wydajność przy odczycie danych
+
+#### Wady:
+
+- Potencjalnie duże dokumenty, które mogą przekroczyć limit rozmiaru dokumentu w MongoDB
+
+- Trudniejsza aktualizacja zagnieżdżonych danych
+
+- Duplikacja danych (np. informacje o autorze są powielane)
+
+- Problemy ze skalowalnością przy dużej liczbie komentarzy
+
+#### Przykładowe zapytanie - pobieranie posta z komentarzami:
+
+#### Przykładowe zapytanie - dodawanie komentarza z kontrolą limitu:
+
+### Wariant 3: Struktura hybrydowa
+W tym podejściu łączymy zalety obu poprzednich wariantów, wykorzystując zarówno referencje, jak i zagnieżdżone dokumenty.
+
+Kolekcja Users
+````js
+{
+    "_id": ObjectId,
+        "username": String,
+        "email": String,
+        "password": String,
+        "profile": {
+            "displayName": String,
+                "bio": String,
+                "joinDate": Date
+        },
+    "stats": {
+        "followers": Number, 
+            "following": Number,
+            "posts": Number
+    }
+}
+````
+
+Kolekcja Posts
+````js
+{
+    "_id": ObjectId,
+        "userId": ObjectId,
+        "authorSummary": {
+        "username": String,
+            "displayName": String
+    },
+    "content": String,
+        "createdAt": Date,
+        "updatedAt": Date,
+        "stats": {
+        "likes": Number,
+            "comments": Number
+    },
+    "maxComments": Number,
+        "tags": [String, String],
+        "recentComments": [
+            {
+            "_id": ObjectId,
+            "userId": ObjectId,
+            "authorSummary": {
+                "username": String,
+                "displayName": String
+                },
+            "content": String,
+            "createdAt": Date,
+            "likes": Number
+            }
+        ]   
+}
+````
+
+Kolekcja Comments
+````js
+{
+    "_id": ObjectId,
+        "postId": ObjectId,
+        "userId": ObjectId,
+        "authorSummary": {
+        "username": String,
+            "displayName": String
+        },
+    "content": String,
+        "createdAt": Date,
+        "likes": Number
+}
+````
+Zalety:
+
+- Zrównoważone podejście łączące zalety obu poprzednich wariantów
+
+- Szybki dostęp do najnowszych komentarzy bez dodatkowych zapytań
+
+- Możliwość pobierania większej liczby komentarzy w razie potrzeby
+
+- Lepsza skalowalność niż w przypadku pełnego zagnieżdżenia
+
+- Mniejsza duplikacja danych niż w wariancie 2
+
+Wady:
+
+- Większa złożoność implementacji
+
+- Konieczność utrzymywania spójności między kolekcjami
+
+- Nadal występuje pewna duplikacja danych
+
+#### Przykładowe zapytanie - pobieranie posta z najnowszymi komentarzami:
+
+#### Przykładowe zapytanie - dodawanie komentarza z kontrolą limitu:
+
+#### Przykładowe zapytanie - pobieranie wszystkich komentarzy do posta:
+
 
 ```js
 --  ...
