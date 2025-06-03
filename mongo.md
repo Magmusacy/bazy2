@@ -6,7 +6,7 @@
 ---
 
 **Imiona i nazwiska autorów:**
-Paweł Gadomski, Jakub
+Paweł Gadomski, Jakub Stachecki
 --- 
 
 Odtwórz z backupu bazę north0
